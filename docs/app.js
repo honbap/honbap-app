@@ -28,7 +28,7 @@ var ERR = [
   ['BAD_TITLE', '제목은 1~40자로 써 주세요.'], ['BAD_BODY', '내용은 1~1000자로 써 주세요.'], ['RATE_LIMIT', '너무 빨라요. 잠시 후 다시 해 주세요.'],
   ['USER_NOT_FOUND', '그 사람을 찾을 수 없어요.'], ['ALREADY_FRIENDS', '이미 친구예요.'], ['ALREADY_REQUESTED', '이미 요청을 보냈어요.'],
   ['TOO_MANY_REQUESTS', '보낸 요청이 너무 많아요. 잠시 후에 해 주세요.'], ['BLOCKED', '차단 관계라 할 수 없어요.'], ['NOT_FRIENDS', '친구끼리만 채팅할 수 있어요.'],
-  ['Email not confirmed', '이메일 인증이 필요해요. 계정 만들기로 다시 진행해 주세요.'], ['Token has expired', '인증번호가 맞지 않거나 만료됐어요.'], ['otp_expired', '인증번호가 맞지 않거나 만료됐어요.'], ['rate limit', '메일을 너무 자주 보냈어요. 잠시 후 다시 해 주세요.'], ['sending confirmation', '인증 메일을 보내지 못했어요. 잠시 후 다시 해 주세요.'], ['BAD_TIME', '모이는 시간을 확인해 주세요. (지금부터 60일 이내, 종료는 시작 뒤 12시간 이내)'], ['REPLY_TOO_DEEP', '답글에는 답글을 달 수 없어요.'], ['COMMENT_NOT_FOUND', '댓글을 찾을 수 없어요.'], ['SUSPENDED', '이용이 정지된 계정이에요.'], ['Failed to fetch', '인터넷 연결을 확인해 주세요.']
+  ['Email not confirmed', '이메일 인증이 필요해요. 계정 만들기로 다시 진행해 주세요.'], ['Token has expired', '인증번호가 맞지 않거나 만료됐어요.'], ['otp_expired', '인증번호가 맞지 않거나 만료됐어요.'], ['rate limit', '메일을 너무 자주 보냈어요. 잠시 후 다시 해 주세요.'], ['sending confirmation', '인증 메일을 보내지 못했어요. 잠시 후 다시 해 주세요.'], ['BAD_TIME', '모이는 시간을 확인해 주세요. (지금부터 60일 이내, 종료는 시작 뒤 12시간 이내)'], ['REPLY_TOO_DEEP', '답글에는 답글을 달 수 없어요.'], ['COMMENT_NOT_FOUND', '댓글을 찾을 수 없어요.'], ['CONFIRM_OFF', '메일 인증 설정이 꺼져 있어요. 운영자가 Supabase에서 Confirm email을 켜야 해요.'], ['SUSPENDED', '이용이 정지된 계정이에요.'], ['Failed to fetch', '인터넷 연결을 확인해 주세요.']
 ];
 function msg(e) {
   var t = String((e && (e.message || e.code)) || e || '');
@@ -443,6 +443,7 @@ var H = {
       if (su && CFG.EMAIL_VERIFY) {
         var sr = await S.sb.auth.signUp({ email: em, password: pw });
         if (sr.error) throw sr.error;
+        if (sr.data && sr.data.session) { await S.sb.auth.signOut(); throw new Error('CONFIRM_OFF'); }
         if (sr.data && sr.data.user && sr.data.user.identities && !sr.data.user.identities.length) throw new Error('EMAIL_TAKEN');
         S.verify = { email: em }; render(); return;
       }
