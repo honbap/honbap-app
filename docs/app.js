@@ -142,6 +142,7 @@ async function loadMembers() {
   if (S.view && S.view.t === 'post' && S.view.id === v.id) { S.members = rows; paintPost(); }
 }
 async function loadCmts() {
+  return;
   if (!S.view || S.view.t !== 'post') return;
   var id = S.view.id;
   var rows = ok(await S.sb.from('comments').select('*').eq('post_id', id).eq('hidden', false).order('id')) || [];
@@ -206,8 +207,6 @@ function subscribe() {
       if (isRoom(v) && ((v.k === 'dm' && n.dm_id === v.dm) || (v.k === 'group' && n.post_id === v.post))) loadMsgs().then(function () { if (n.sender_id !== S.me.id) markRead(); });
     })
     .on('postgres_changes', q('room_reads'), function () { if (isRoom(S.view) && S.view.k === 'dm') later('peer', loadPeer, 100); later('rooms', loadRooms); })
-    .on('postgres_changes', q('comments'), function () { later('cmts', loadCmts, 150); later('posts', loadPosts, 400); })
-    .on('postgres_changes', q('comment_likes'), function () { later('cmts', loadCmts, 150); })
     .on('postgres_changes', q('post_members'), function () { later('mem', loadMembers, 150); later('posts', loadPosts, 400); later('rooms', loadRooms, 300); })
     .on('postgres_changes', q('posts'), function () { later('posts', loadPosts, 400); })
     .on('postgres_changes', q('friendships'), function () { later('fr', function () { loadFriends().then(loadRooms); }, 200); })
@@ -303,7 +302,7 @@ function vSetup() {
 }
 function vPost() {
   return '<div class="page"><div class="bar">' + ib('back', 'back', '뒤로') + '<div class="bt">게시글</div>' + ib('postmenu', 'more', '더보기') + '</div>' +
-    '<div class="pbody" id="pb"></div><div class="cinw"><div class="rbar" id="rbar" hidden></div><div class="cin"><input type="text" id="ci" maxlength="200" placeholder="댓글을 입력하세요" autocomplete="off" aria-label="댓글"><button data-act="addcmt" aria-label="댓글 등록">' + ic('send') + '</button></div></div></div>';
+    '<div class="pbody" id="pb"></div></div>';
 }
 function vCompose() {
   return '<div class="page"><div class="bar">' + ib('back', 'close', '닫기') + '<div class="bt">' + (S.kind === 'meal' ? '밥' : '공부') + ' 게시판 글쓰기</div><button class="txtbtn" data-act="submitpost">등록</button></div>' +
@@ -334,8 +333,7 @@ function paintList() {
   if (!rows.length) { el.innerHTML = '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
   el.innerHTML = rows.map(function (p) {
     return '<button class="post" data-act="post" data-id="' + p.id + '"><span class="pt">' + esc(p.title) + '</span><span class="pp">' + esc(p.body) + '</span>' + tbox(p, true) +
-      '<span class="pm"><span>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</span><span>' + ago(p.created_at) + '</span>' + capChip(p) +
-      (p.comment_count ? '<span class="cc">' + ic('chat') + p.comment_count + '</span>' : '') + '</span></button>';
+      '<span class="pm"><span>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</span><span>' + ago(p.created_at) + '</span>' + capChip(p) + '</span></button>';
   }).join('');
 }
 function paintRooms() {
@@ -409,8 +407,7 @@ function paintPost() {
   var keep = el.scrollTop, cm = S.cmts || [];
   el.innerHTML = '<div class="ph">' + av(p.author_id, 36, true) + '<div class="nmb"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div></div>' +
     '<div class="pd-title">' + esc(p.title) + '</div>' + (p.starts_at ? '<div class="tbwrap">' + tbox(p, false) + '</div>' : '') + '<div class="pd-body">' + esc(p.body) + '</div>' +
-    (S.members ? joinCard(p) : '') + '<div class="cmhead">댓글 ' + cm.length + '</div>' +
-    (S.cmts === null ? '<div class="empty">불러오는 중…</div>' : cmList(cm));
+    (S.members ? joinCard(p) : '<div class="empty">불러오는 중…</div>');
   el.scrollTop = keep;
 }
 function paintMsgs(stick) {
@@ -512,7 +509,7 @@ function popView() {
   var was = S.view, prev = S.vs.pop();
   S.view = prev ? prev.v : null; S.cur = prev ? prev.cur : null; S.cmts = null; S.members = null; S.msgs = null; S.repMsg = null; S.replyTo = null;
   closeSheet(); render();
-  if (S.view && S.view.t === 'post') { loadCmts().catch(fail); loadMembers().catch(fail); }
+  if (S.view && S.view.t === 'post') { loadMembers().catch(fail); }
   if (was && was.t === 'room') later('rooms', loadRooms, 50);
 }
 window.addEventListener('popstate', function () { if (S.view) popView(); else closeSheet(); });
@@ -525,7 +522,7 @@ async function openPost(id, replace) {
   await loadNames([p.author_id]);
   S.cur = p; S.cmts = null; S.members = null; S.replyTo = null; closeSheet();
   if (S.view && S.view.t === 'post') swap({ t: 'post', id: p.id }); else (replace ? swap : go)({ t: 'post', id: p.id });
-  await Promise.all([loadCmts(), loadMembers()]);
+  await loadMembers();
 }
 async function openRoom(dm, other) {
   S.msgs = null; S.peerRead = 0; S.repMsg = null; closeSheet(); go({ t: 'room', k: 'dm', dm: Number(dm), other: other });
