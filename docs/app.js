@@ -9,7 +9,7 @@ var S = {
   sb: null, user: null, me: null, schools: [], tab: 'board', kind: 'meal', chatSeg: 'dm', authMode: 'login', email: '', gender: '', starting: false,
   posts: { meal: null, study: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
   notes: [], blocks: [], likes: [], members: null, replyTo: null, verify: null, resendAt: 0, cap: 4,
-  view: null, vs: [], cur: null, cmts: null, msgs: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
+  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
 };
 
 /* ───────── 작은 도구 ───────── */
@@ -109,7 +109,9 @@ async function loadPosts() {
   var k = S.kind;
   var rows = ok(await S.sb.from('post_feed').select('*').eq('kind', k).eq('hidden', false).order('id', { ascending: false }).limit(60)) || [];
   await loadNames(rows.map(function (r) { return r.author_id; }));
-  S.posts[k] = rows; paintList();
+  var mm = ok(await S.sb.from('post_members').select('post_id').eq('user_id', S.me.id)) || [], my = {};
+  mm.forEach(function (x) { my[x.post_id] = 1; });
+  S.myPosts = my; S.posts[k] = rows; paintList();
 }
 async function loadRooms() {
   S.rooms = ok(await S.sb.rpc('my_rooms')) || [];
@@ -339,9 +341,12 @@ function paintList() {
   if (!rows) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
   if (!rows.length) { el.innerHTML = '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
   el.innerHTML = rows.map(function (p) {
-    var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100));
-    return '<button class="post" data-act="post" data-id="' + p.id + '"><span class="ph2">' + av(p.author_id, 30) + '<span class="who2"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</span>' +
-      '<span class="pt">' + esc(p.title) + '</span><span class="pp">' + esc(p.body) + '</span>' + tbox(p, true) + '<span class="pbar" aria-hidden="true"><i style="width:' + pct + '%"></i></span></button>';
+    var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100)), mine = S.myPosts[p.id], full = (p.member_count || 0) >= p.capacity;
+    var btn = mine ? '<button class="jbtn go" data-act="gochat" data-id="' + p.id + '" data-title="' + esc(p.title) + '">채팅 열기 ›</button>' :
+      (p.closed || full ? '<button class="jbtn" disabled>' + (p.closed ? '마감' : '정원 마감') + '</button>' : '<button class="jbtn" data-act="quickjoin" data-id="' + p.id + '">참여하기 ›</button>');
+    return '<div class="post" role="button" tabindex="0" data-act="post" data-id="' + p.id + '"><div class="ph2">' + av(p.author_id, 34) + '<span class="who2"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</div>' +
+      '<div class="pt">' + esc(p.title) + '</div><div class="pp">' + esc(p.body) + '</div>' +
+      '<div class="pfoot">' + (p.starts_at ? tbox(p, false) : '<span class="notm">모이는 시간 미정</span>') + btn + '</div><div class="pbar" aria-hidden="true"><i style="width:' + pct + '%"></i></div></div>';
   }).join('');
 }
 function paintRooms() {
@@ -675,6 +680,11 @@ var H = {
     S.cur = ok(await S.sb.from('post_feed').select('*').eq('id', S.cur.id).maybeSingle()) || S.cur;
     paintPost(); loadPosts().catch(fail); toast(S.cur.closed ? '모집을 마감했어요.' : '모집을 다시 열었어요.');
   },
+  quickjoin: async function (el) {
+    await rpc('join_post', { p_id: Number(el.dataset.id) });
+    toast('참여했어요. 내 모임에서 단체 채팅을 할 수 있어요.'); await Promise.all([loadPosts(), loadRooms()]);
+  },
+  gochat: function (el) { return openGroup(el.dataset.id, el.dataset.title); },
   gopost: function () { return openGroup(S.cur.id, S.cur.title); },
   group: function (el) { return openGroup(el.dataset.post, el.dataset.title); },
   members: function () { return openMembers(); },
@@ -743,6 +753,7 @@ document.addEventListener('change', function (e) {
 });
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') { closeSheet(); return; }
+  if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('post')) { e.preventDefault(); e.target.click(); return; }
   if (e.key !== 'Enter' || e.isComposing || e.shiftKey) return;
   var map = { pw: 'auth', pw2: 'auth', em: 'auth', vc: 'verify', ci: 'addcmt', mi: 'sendmsg', fq: 'fdo' }, a = map[e.target.id];
   if (a) { e.preventDefault(); var b = document.querySelector('[data-act="' + a + '"]'); if (b) b.click(); }
