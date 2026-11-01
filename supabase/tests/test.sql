@@ -1,5 +1,5 @@
 -- 백엔드 시나리오 테스트
--- 순서: stub_supabase.sql → 0001_init.sql → 0002_community.sql → 0003_replies_likes_time.sql → 이 파일  (마지막 줄에 ALL TESTS PASSED)
+-- 순서: stub_supabase.sql → 0001 → 0002 → 0003 → 0004 → 0005 → 이 파일  (마지막 줄에 ALL TESTS PASSED)
 create schema t; grant usage on schema t to authenticated;
 create function t.ok(c boolean, m text) returns void language plpgsql as
 $$ begin if not coalesce(c, false) then raise exception 'FAIL: %', m; end if; raise notice 'ok   %', m; end $$;
@@ -29,24 +29,25 @@ select t.ok((select count(*) from auth.users) = 5, '학교 이메일이 아니�
 \echo === 프로필: 닉네임 + 성별(처음 한 번) + 학교 선택
 select set_config('request.jwt.claims', json_build_object('sub', :'alice')::text, false);
 set role authenticated;
-select t.fails($$select create_profile('a', '여성', 1)$$, 'BAD_NICKNAME');
-select t.fails($$select create_profile('도토리', '미공개', 1)$$, 'BAD_GENDER');
-select t.fails($$select create_profile('도토리', '기타', 1)$$, 'BAD_GENDER');
-select t.fails($$select create_profile('도토리', '여성', 999)$$, 'BAD_SCHOOL');
-select create_profile('도토리', '여성', 1);
-select t.fails($$select create_profile('도토리2', '여성', 1)$$, 'PROFILE_EXISTS');
+select t.fails($$select create_profile('도토리', '여성', 1, false)$$, 'TERMS_REQUIRED');
+select t.fails($$select create_profile('a', '여성', 1, true)$$, 'BAD_NICKNAME');
+select t.fails($$select create_profile('도토리', '미공개', 1, true)$$, 'BAD_GENDER');
+select t.fails($$select create_profile('도토리', '기타', 1, true)$$, 'BAD_GENDER');
+select t.fails($$select create_profile('도토리', '여성', 999, true)$$, 'BAD_SCHOOL');
+select create_profile('도토리', '여성', 1, true);
+select t.fails($$select create_profile('도토리2', '여성', 1, true)$$, 'PROFILE_EXISTS');
 reset role;
 select set_config('request.jwt.claims', json_build_object('sub', :'bob')::text, false);
 set role authenticated;
-select t.fails($$select create_profile('도토리', '남성', 1)$$, 'NICKNAME_TAKEN');
-select create_profile('나무', '남성', 1);
+select t.fails($$select create_profile('도토리', '남성', 1, true)$$, 'NICKNAME_TAKEN');
+select create_profile('나무', '남성', 1, true);
 reset role;
 select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
-set role authenticated; select create_profile('라임', '남성', 1); reset role;
+set role authenticated; select create_profile('라임', '남성', 1, true); reset role;
 select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text, false);
-set role authenticated; select create_profile('구름', '여성', 1); reset role;
+set role authenticated; select create_profile('구름', '여성', 1, true); reset role;
 select set_config('request.jwt.claims', json_build_object('sub', :'frank')::text, false);
-set role authenticated; select create_profile('이방인', '남성', 2); reset role;
+set role authenticated; select create_profile('이방인', '남성', 2, true); reset role;
 
 \echo === 글: 제목 + 내용만
 select set_config('request.jwt.claims', json_build_object('sub', :'alice')::text, false);
@@ -94,6 +95,16 @@ set role authenticated;
 select update_profile('나무숲');
 select t.ok((select gender::text from profiles where id = auth.uid()) = '남성', '닉네임을 바꿔도 성별은 그대로');
 select t.ok((select nickname from profiles where id = auth.uid()) = '나무숲', '닉네임 변경');
+select t.fails($$select update_profile('다른이름')$$, 'NICKNAME_COOLDOWN');
+select update_profile('나무숲');
+reset role;
+update public.profiles set nickname_changed_at = now() - interval '8 days' where id = :'bob';
+set role authenticated;
+select update_profile('나무숲2');
+select t.ok((select nickname from profiles where id = auth.uid()) = '나무숲2', '7일이 지나면 다시 변경 가능');
+reset role;
+update public.profiles set nickname = '나무숲', nickname_changed_at = null where id = :'bob';
+set role authenticated;
 reset role;
 
 
@@ -133,6 +144,55 @@ select t.ok((select count(*) from comments where id = (select rep from tr)) = 0,
 select t.ok((select count(*) from comment_likes where comment_id = (select top from tc)) = 0, '좋아요도 함께 삭제됨');
 reset role;
 
+
+\echo === 참여(모임) · 단체 채팅
+select set_config('request.jwt.claims', json_build_object('sub', :'alice')::text, false);
+set role authenticated;
+select t.fails($$select create_post('meal', '인원 오류', '내용', null, null, 1)$$, 'BAD_CAPACITY');
+create temp table gp as select create_post('meal', '점심 모임', '같이 먹어요', null, null, 2) as id;
+grant select on gp to authenticated;
+select t.ok((select member_count from post_feed where id = (select id from gp)) = 1, '작성자는 자동으로 참여');
+select t.ok((select count(*) from my_rooms() where kind = 'group') >= 1, '내 모임 목록에 보임');
+select send_group_message((select id from gp), '첫 메시지(참여 전)');
+select t.fails(format($$select leave_post(%s)$$, (select id from gp)), 'AUTHOR_CANNOT_LEAVE');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'bob')::text, false);
+set role authenticated;
+select t.fails(format($$select send_group_message(%s, '몰래')$$, (select id from gp)), 'ROOM_NOT_FOUND');
+select t.ok((select count(*) from messages where post_id = (select id from gp)) = 0, '참여 전에는 단체 채팅이 안 보임');
+select join_post((select id from gp));
+select t.fails(format($$select join_post(%s)$$, (select id from gp)), 'ALREADY_JOINED');
+select t.ok((select count(*) from messages where post_id = (select id from gp)) = 0, '참여 전 메시지는 참여 후에도 안 보임');
+select send_group_message((select id from gp), '반가워요');
+select t.ok((select count(*) from messages where post_id = (select id from gp)) = 1, '참여자는 단체 채팅이 보임');
+select t.ok((select member_count from post_feed where id = (select id from gp)) = 2, '참여 인원이 늘어남');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+select t.fails(format($$select join_post(%s)$$, (select id from gp)), 'POST_FULL');
+select t.fails(format($$select send_group_message(%s, '외부인')$$, (select id from gp)), 'ROOM_NOT_FOUND');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'alice')::text, false);
+set role authenticated;
+select t.ok((select unread from my_rooms() where room_key = 'p:' || (select id from gp)) = 1, '작성자에게 안 읽은 메시지 1건');
+select mark_read('p:' || (select id from gp));
+select t.ok((select unread from my_rooms() where room_key = 'p:' || (select id from gp)) = 0, '읽으면 0');
+select t.fails($$select mark_read('p:999999')$$, 'ROOM_NOT_FOUND');
+select set_post_closed((select id from gp), true);
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'bob')::text, false);
+set role authenticated;
+select leave_post((select id from gp));
+select t.ok((select count(*) from messages where post_id = (select id from gp)) = 0, '나가면 단체 채팅이 안 보임');
+select t.fails(format($$select join_post(%s)$$, (select id from gp)), 'POST_CLOSED');
+select t.fails($$select leave_post(999999)$$, 'POST_NOT_FOUND');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'alice')::text, false);
+set role authenticated;
+select delete_post((select id from gp));
+select t.ok((select count(*) from messages where post_id = (select id from gp)) = 0 and (select count(*) from post_members where post_id = (select id from gp)) = 0, '글을 지우면 참여·채팅도 함께 삭제됨');
+reset role;
+
 \echo === 차단
 select set_config('request.jwt.claims', json_build_object('sub', :'alice')::text, false);
 set role authenticated;
@@ -158,9 +218,9 @@ select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text,
 set role authenticated;
 select t.ok((select count(*) from notifications where kind = 'friend_request') = 1, '친구 요청 알림');
 select respond_friend((select id from friendships limit 1), true);
-select t.ok((select count(*) from my_rooms()) = 1, '친구가 되면 채팅방이 생김');
-select t.ok((select last_body from my_rooms()) is null, '안내 메시지 없이 빈 방으로 시작');
-create temp table rooms as select dm_id, room_key from my_rooms();
+select t.ok((select count(*) from my_rooms() where kind = 'dm') = 1, '친구가 되면 채팅방이 생김');
+select t.ok((select last_body from my_rooms() where kind = 'dm') is null, '안내 메시지 없이 빈 방으로 시작');
+create temp table rooms as select dm_id, room_key from my_rooms() where kind = 'dm';
 grant select on rooms to authenticated;
 select send_message((select dm_id from rooms), '안녕하세요 구름이에요');
 select t.fails($$select send_message(999999, 'x')$$, 'ROOM_NOT_FOUND');
@@ -169,11 +229,11 @@ reset role;
 
 select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
 set role authenticated;
-select t.ok((select unread from my_rooms()) = 1, '상대에게 안 읽은 메시지 1건');
+select t.ok((select unread from my_rooms() where kind = 'dm') = 1, '상대에게 안 읽은 메시지 1건');
 select t.ok((select count(*) from messages) = 1, '채팅방 참여자는 메시지가 보임');
 select t.ok((select count(*) from room_reads) = 0, '아직 아무도 읽지 않음');
 select mark_read((select room_key from rooms));
-select t.ok((select unread from my_rooms()) = 0, '읽으면 안 읽은 수가 0');
+select t.ok((select unread from my_rooms() where kind = 'dm') = 0, '읽으면 안 읽은 수가 0');
 select send_message((select dm_id from rooms), '반가워요 라임이에요');
 reset role;
 
@@ -181,7 +241,7 @@ select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text,
 set role authenticated;
 select t.ok((select last_read_at from room_reads where user_id = :'carol') >= (select created_at from messages where body = '안녕하세요 구름이에요'),
             '보낸 사람이 상대의 읽음 시각을 볼 수 있음 → 내 메시지에 "읽음" 표시');
-select t.ok((select unread from my_rooms()) = 1, '받은 쪽 안 읽은 메시지 1건(반가워요)');
+select t.ok((select unread from my_rooms() where kind = 'dm') = 1, '받은 쪽 안 읽은 메시지 1건(반가워요)');
 select t.fails(format($$select mark_read('d:%s')$$, 999999), 'ROOM_NOT_FOUND');
 reset role;
 
@@ -211,7 +271,7 @@ select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text,
 set role authenticated;
 select block_user(:'carol');
 select t.ok((select count(*) from friendships) = 0, '친구 관계가 끊김');
-select t.ok((select count(*) from my_rooms()) = 0, '채팅방이 목록에서 사라짐');
+select t.ok((select count(*) from my_rooms() where kind = 'dm') = 0, '채팅방이 목록에서 사라짐');
 select t.fails(format($$select request_friend('%s')$$, :'carol'), 'BLOCKED');
 select unblock_user(:'carol');
 reset role;

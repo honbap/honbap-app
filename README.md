@@ -90,3 +90,11 @@ for f in tests/stub_supabase.sql migrations/0001_init.sql migrations/0002_commun
   psql -v ON_ERROR_STOP=1 -d honbap_test -f supabase/$f; done        # 마지막에 ALL TESTS PASSED
 ```
 `stub_supabase.sql`은 테스트 전용이에요. **Supabase 프로젝트에는 실행하지 마세요.**
+
+
+## 2026-11 업데이트
+- DB 마이그레이션 0001~0005를 순서대로 적용해요. (0004 닉네임 7일 제한, 0005 참여·단체 채팅·약관 동의 기록)
+- 모집글에 "참여하기"를 누르면 단체 채팅(내 모임)이 열리고, 참여한 뒤의 대화만 볼 수 있어요.
+- `web/legal.html`의 `[ ]` 칸(운영자 이름, 책임자, 문의 이메일)을 **공개 전에 반드시** 채우세요. 이 문서는 템플릿이며 법률 자문이 아니에요.
+- 테스트: tests/stub_supabase.sql → 0001~0005 → tests/test.sql
+- 공개 전: 시험 계정(test1/test2@saebom.ac.kr)과 '시험용 학교' 삭제, Supabase 지역(현재 아일랜드)을 서울로 옮기는 것을 권장해요.
