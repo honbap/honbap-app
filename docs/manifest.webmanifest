@@ -1,0 +1,14 @@
+{
+  "name": "밥친구",
+  "short_name": "밥친구",
+  "description": "같은 학교 사람들과 밥·공부를 같이 해요",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#EBF0F2",
+  "theme_color": "#147A5D",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
