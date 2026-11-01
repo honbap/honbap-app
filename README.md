@@ -97,4 +97,4 @@ for f in tests/stub_supabase.sql migrations/0001_init.sql migrations/0002_commun
 - 모집글에 "참여하기"를 누르면 단체 채팅(내 모임)이 열리고, 참여한 뒤의 대화만 볼 수 있어요.
 - `web/legal.html`의 `[ ]` 칸(운영자 이름, 책임자, 문의 이메일)을 **공개 전에 반드시** 채우세요. 이 문서는 템플릿이며 법률 자문이 아니에요.
 - 테스트: tests/stub_supabase.sql → 0001~0005 → tests/test.sql
-- 공개 전: 시험 계정(test1/test2@saebom.ac.kr)과 '시험용 학교' 삭제, Supabase 지역(현재 아일랜드)을 서울로 옮기는 것을 권장해요.
+- 공개 전: 시험 계정(test1/test2@saebom.ac.kr)과 '시험용 학교' 삭제, Supabase 프로젝트는 서울(ap-northeast-2) `honbap-seoul`로 옮겼어요. 아일랜드 프로젝트 honbap은 확인 후 삭제하세요.
