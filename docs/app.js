@@ -206,12 +206,26 @@ async function hardLogout(message, isErr) {
   if (message) toast(message, isErr);
 }
 var chan = null;
+/* 알림: 앱을 보고 있으면 화면 위 알림, 다른 탭/백그라운드면 브라우저 알림 */
+function ping(title, body) {
+  if (document.visibilityState === 'visible') { toast(title + (body ? ' ' + body : '')); return; }
+  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '', icon: 'icon-192.png', tag: 'honbap' }); } catch (e) { /* 무시 */ }
+}
+async function notifyMsg(n) {
+  if (!n || n.hidden || n.sender_id === S.me.id || !n.sender_id) return;
+  var v = S.view; if (isRoom(v) && document.visibilityState === 'visible' && ((v.k === 'dm' && n.dm_id === v.dm) || (v.k === 'group' && n.post_id === v.post))) return;
+  await loadNames([n.sender_id]);
+  var where = n.post_id ? ((S.rooms || []).filter(function (r) { return r.post_id === n.post_id; })[0] || {}).title : '';
+  ping((where ? '[' + where + '] ' : '') + nick(n.sender_id) + ':', String(n.body || '').slice(0, 60));
+}
+function notifyNote(n) { if (n && n.user_id === S.me.id && n.body) ping(n.body, ''); }
 function subscribe() {
   if (chan) return;
   var q = function (t) { return { event: '*', schema: 'public', table: t }; };
   chan = S.sb.channel('app')
     .on('postgres_changes', q('messages'), function (p) {
       var v = S.view, n = p.new || {};
+      if (p.eventType === 'INSERT') notifyMsg(n);
       later('rooms', loadRooms);
       if (isRoom(v) && ((v.k === 'dm' && n.dm_id === v.dm) || (v.k === 'group' && n.post_id === v.post))) loadMsgs().then(function () { if (n.sender_id !== S.me.id) markRead(); });
     })
@@ -219,7 +233,7 @@ function subscribe() {
     .on('postgres_changes', q('post_members'), function () { later('mem', loadMembers, 150); later('posts', loadPosts, 400); later('rooms', loadRooms, 300); })
     .on('postgres_changes', q('posts'), function () { later('posts', loadPosts, 400); })
     .on('postgres_changes', q('friendships'), function () { later('fr', function () { loadFriends().then(loadRooms); }, 200); })
-    .on('postgres_changes', q('notifications'), function () { later('notes', loadNotes, 200); })
+    .on('postgres_changes', q('notifications'), function (p) { if (p.eventType === 'INSERT') notifyNote(p.new); later('notes', loadNotes, 200); })
     .subscribe();
 }
 function teardown() {
@@ -269,10 +283,17 @@ function vMe() {
     '<h2>닉네임 바꾸기</h2><div class="stack"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"' + (cool ? ' disabled' : '') + '><button class="btn" data-act="saveprofile"' + (cool ? ' disabled' : '') + '>저장</button></div>' +
     '<p class="sub" style="margin-top:8px">' + (cool ? '<span class="warn">닉네임은 ' + (next.getMonth() + 1) + '월 ' + next.getDate() + '일 ' + hm(next) + ' 이후에 바꿀 수 있어요.</span> ' : '') + '닉네임은 7일에 한 번만 바꿀 수 있어요. 학교와 성별은 처음 정한 뒤로는 바꿀 수 없어요.</p>' +
     '<h2>차단한 사람</h2>' + bl +
-    '<h2>안내</h2><div class="links"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a><a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a><a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키·저장소 안내</a><a href="' + LEGAL + '#contact" target="_blank" rel="noopener">운영자 정보 · 문의</a></div>' +
+    '<h2>알림</h2>' + notifyRow() + '<h2>안내</h2><div class="links"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a><a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a><a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키·저장소 안내</a><a href="' + LEGAL + '#contact" target="_blank" rel="noopener">운영자 정보 · 문의</a></div>' +
     '<h2>계정</h2><div class="row">' + (S.me.is_admin ? '<a class="btn sec" href="admin.html">운영자 화면</a>' : '') +
     '<button class="btn sec" data-act="logout">로그아웃</button><button class="btn dg" data-act="delacct">계정 삭제</button></div>' +
     '<p class="sub" style="margin-top:8px">계정을 삭제하면 프로필, 글, 댓글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.</p></div></main>';
+}
+function notifyRow() {
+  if (!('Notification' in window)) return '<p class="sub">이 브라우저는 앱 밖 알림을 지원하지 않아요. 앱을 열어 둔 동안에는 화면 위 알림이 떠요.</p>';
+  var p = Notification.permission;
+  if (p === 'granted') return '<p class="sub">알림이 켜져 있어요. 참여·채팅·친구 요청이 오면 알려 줘요.</p>';
+  if (p === 'denied') return '<p class="sub"><span class="warn">브라우저에서 알림이 막혀 있어요.</span> 주소창 왼쪽 자물쇠 → 알림을 허용으로 바꿔 주세요.</p>';
+  return '<button class="btn sec" data-act="allownotify">브라우저 알림 켜기</button><p class="sub" style="margin-top:8px">누가 참여하거나 채팅이 오면 다른 화면을 보고 있어도 알려 줘요.</p>';
 }
 function legalLinks() {
   return '<p class="legal"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a> · <a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a> · <a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키 안내</a></p>';
@@ -737,6 +758,10 @@ var H = {
     i.value = ''; i.focus();
     try { if (v.k === 'dm') await rpc('send_message', { p_dm_id: v.dm, p_body: b }); else await rpc('send_group_message', { p_post: v.post, p_body: b }); } catch (e) { i.value = b; throw e; }
     await loadMsgs(); var m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight;
+  },
+  allownotify: async function () {
+    var r = await Notification.requestPermission(); render();
+    toast(r === 'granted' ? '알림을 켰어요.' : '알림이 허용되지 않았어요.', r !== 'granted');
   },
   cookieok: function () { try { localStorage.setItem('hb_notice', '1'); } catch (e) { /* 무시 */ } S.seenNotice = true; var n = $('#notice'); if (n) n.hidden = true; }
 };
