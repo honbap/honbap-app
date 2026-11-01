@@ -9,7 +9,7 @@ var S = {
   sb: null, user: null, me: null, schools: [], tab: 'board', kind: 'meal', chatSeg: 'dm', authMode: 'login', email: '', gender: '', starting: false,
   posts: { meal: null, study: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
   notes: [], blocks: [], likes: [], members: null, replyTo: null, verify: null, resendAt: 0, cap: 4,
-  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
+  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, stats: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
 };
 
 /* ───────── 작은 도구 ───────── */
@@ -18,7 +18,7 @@ var ICON = {
   send: 'M4 12l16-8-6 16-3-7-7-1z', chat: 'M4 5h16v11H9l-5 4z', board: 'M5 4h14v16H5zM9 9h6M9 13h6',
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6', more: 'M12 6v.01M12 12v.01M12 18v.01',
   userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
-  heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
   group: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.5 3.5 0 010 6.5M18 14.5c2.5.5 4 2.2 4 5.5'
 };
 function ic(n) { return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICON[n] + '"/></svg>'; }
@@ -383,15 +383,6 @@ function paintBell() {
   var d = b.querySelector('.dot'), un = S.notes.some(function (n) { return !n.read; });
   if (un && !d) b.insertAdjacentHTML('beforeend', '<span class="dot"></span>'); else if (!un && d) d.remove();
 }
-function joinCard(p) {
-  var mem = S.members || [], me = S.me.id, joined = mem.some(function (m) { return m.user_id === me; }), mine = p.author_id === me, n = mem.length, full = n >= p.capacity;
-  var h = '<div class="join"><div class="jh"><b>참여 ' + n + '/' + p.capacity + '명</b>' + (p.closed ? '<span class="capc off">모집 마감</span>' : full ? '<span class="capc off">정원 마감</span>' : '') + '</div>';
-  h += '<div class="jav">' + mem.map(function (m) { return '<span class="jm">' + av(m.user_id, 30, true) + '<small>' + esc(nick(m.user_id)) + '</small></span>'; }).join('') + '</div><div class="row">';
-  if (joined) h += '<button class="btn" data-act="gopost">' + ic('chat') + ' 단체 채팅 열기</button>' + (mine ? '<button class="btn sec" data-act="toggleclose">' + (p.closed ? '모집 다시 열기' : '모집 마감하기') + '</button>' : '<button class="btn sec" data-act="leave">참여 취소</button>');
-  else if (p.closed || full) h += '<button class="btn" disabled>' + (p.closed ? '모집이 마감됐어요' : '정원이 찼어요') + '</button>';
-  else h += '<button class="btn" data-act="join">참여하기</button>';
-  return h + '</div>' + (joined ? '' : '<p class="sub" style="margin-top:8px">참여하면 이 글의 단체 채팅방이 열려요. 참여한 뒤의 대화만 볼 수 있어요.</p>') + '</div>';
-}
 function cmHtml(c, reply) {
   var mine = c.author_id === S.me.id, n = 0, on = false;
   S.likes.forEach(function (l) { if (l.comment_id === c.id) { n++; if (l.user_id === S.me.id) on = true; } });
@@ -417,11 +408,23 @@ function paintReplyBar() {
 function paintPost() {
   var el = $('#pb'); if (!el || !S.view || S.view.t !== 'post') return;
   var p = S.cur; if (!p) return;
-  var keep = el.scrollTop, cm = S.cmts || [];
-  el.innerHTML = '<div class="ph">' + av(p.author_id, 36, true) + '<div class="nmb"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div></div>' +
-    '<div class="pd-title">' + esc(p.title) + '</div>' + (p.starts_at ? '<div class="tbwrap">' + tbox(p, false) + '</div>' : '') + '<div class="pd-body">' + esc(p.body) + '</div>' +
-    (S.members ? joinCard(p) : '<div class="empty">불러오는 중…</div>');
-  el.scrollTop = keep;
+  var keep = el.scrollTop, mem = S.members, me = S.me.id, st = S.stats || { views: 0, likes: 0, liked: false };
+  var n = mem ? mem.length : (p.member_count || 0), joined = mem ? mem.some(function (m) { return m.user_id === me; }) : !!S.myPosts[p.id], mine = p.author_id === me, full = n >= p.capacity;
+  var btn = joined ? '<button class="jbtn big" data-act="gopost">' + ic('chat') + ' 단체 채팅 열기 ›</button>' :
+    (p.closed || full ? '<button class="jbtn big" disabled>' + (p.closed ? '모집 마감' : '정원 마감') + '</button>' : '<button class="jbtn big" data-act="join">참여하기 ›</button>');
+  var tline = p.starts_at ? '<div class="jt">' + ic('clock') + '<span>' + tText(p) + '</span></div>' : '';
+  var h = '<div class="dcard"><div class="ph">' + av(p.author_id, 48, true) + '<div class="nmb"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div>' +
+    '<div class="chips"><button class="chip' + (st.liked ? ' on' : '') + '" data-act="plike" aria-pressed="' + st.liked + '" aria-label="좋아요 ' + st.likes + '개">' + ic('heart') + st.likes + '</button><span class="chip" aria-label="조회 ' + st.views + '회">' + ic('eye') + st.views + '</span></div></div>' +
+    '<h2 class="dt">' + esc(p.title) + '</h2><div class="pd-body">' + esc(p.body) + '</div>' +
+    '<div class="jbox"><div class="jinfo"><div class="jn">' + ic('group') + '<b>참여 ' + n + '/' + p.capacity + '명</b>' + (p.closed ? '<span class="capc off">모집 마감</span>' : '') + '</div>' + tline + '</div>' + btn + '</div>' +
+    (mem ? '<div class="jav">' + mem.map(function (m) { return '<span class="jm">' + av(m.user_id, 34, true) + '<small>' + esc(nick(m.user_id)) + '</small></span>'; }).join('') + '</div>' : '') + '</div>';
+  if (mine) h += '<div class="dcard row2"><span class="ico">' + ic('cal') + '</span><div class="rt"><b>' + (p.closed ? '모집 다시 열기' : '모집 마감하기') + '</b><small>' + (p.closed ? '다시 열면 다른 사람이 참여할 수 있어요.' : '모집을 마감하면 더 이상 참여할 수 없어요!') + '</small></div><button class="obtn" data-act="toggleclose">' + (p.closed ? '다시 열기' : '모집 마감하기') + '</button></div>';
+  else if (joined) h += '<div class="dcard row2"><span class="ico">' + ic('group') + '</span><div class="rt"><b>참여 취소</b><small>취소하면 단체 채팅방에서 나가요.</small></div><button class="obtn" data-act="leave">참여 취소</button></div>';
+  el.innerHTML = h; el.scrollTop = keep;
+}
+function tText(p) {
+  var a = new Date(p.starts_at), b = p.ends_at ? new Date(p.ends_at) : null, t = function (d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  return '<b>' + (a.getMonth() + 1) + '월 ' + a.getDate() + '일 (' + DOW[a.getDay()] + ')</b> <em>' + t(a) + (b ? ' ~ ' + t(b) : ' 시작') + '</em>';
 }
 /* 단체 채팅: 이 메시지를 아직 안 읽은 사람 수 (보낸 사람·나는 빼요) */
 function gUnread(m) {
@@ -546,8 +549,9 @@ async function openPost(id, replace) {
   if (fresh) p = fresh;
   if (!p) { toast('삭제되었거나 볼 수 없는 글이에요.', true); return; }
   await loadNames([p.author_id]);
-  S.cur = p; S.cmts = null; S.members = null; S.replyTo = null; closeSheet();
+  S.cur = p; S.cmts = null; S.members = null; S.replyTo = null; S.stats = null; closeSheet();
   if (S.view && S.view.t === 'post') swap({ t: 'post', id: p.id }); else (replace ? swap : go)({ t: 'post', id: p.id });
+  rpc('view_post', { p_id: p.id }).then(function (r) { if (S.cur && S.cur.id === p.id) { S.stats = r && r[0] ? r[0] : r; paintPost(); } }).catch(function () { /* 조회수는 실패해도 무시 */ });
   await loadMembers();
 }
 async function openRoom(dm, other) {
@@ -685,6 +689,9 @@ var H = {
     toast('참여했어요. 내 모임에서 단체 채팅을 할 수 있어요.'); await Promise.all([loadPosts(), loadRooms()]);
   },
   gochat: function (el) { return openGroup(el.dataset.id, el.dataset.title); },
+  plike: async function () {
+    var r = await rpc('toggle_post_like', { p_id: S.cur.id }); S.stats = r && r[0] ? r[0] : r; paintPost();
+  },
   gopost: function () { return openGroup(S.cur.id, S.cur.title); },
   group: function (el) { return openGroup(el.dataset.post, el.dataset.title); },
   members: function () { return openMembers(); },
