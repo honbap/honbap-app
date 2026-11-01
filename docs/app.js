@@ -9,7 +9,7 @@ var S = {
   sb: null, user: null, me: null, schools: [], tab: 'board', kind: 'meal', chatSeg: 'dm', authMode: 'login', email: '', gender: '', starting: false,
   posts: { meal: null, study: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
   notes: [], blocks: [], likes: [], members: null, replyTo: null, verify: null, resendAt: 0, cap: 4,
-  view: null, vs: [], cur: null, cmts: null, msgs: null, peerRead: 0, repMsg: null, rep: null, busy: false, ready: false
+  view: null, vs: [], cur: null, cmts: null, msgs: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
 };
 
 /* ───────── 작은 도구 ───────── */
@@ -160,7 +160,14 @@ async function loadMsgs() {
   S.msgs = rows.filter(function (m) { return !m.hidden; }).reverse(); paintMsgs();
 }
 async function loadPeer() {
-  var v = S.view; if (!isRoom(v) || v.k !== 'dm') return;
+  var v = S.view; if (!isRoom(v)) return;
+  if (v.k === 'group') {
+    var mem = ok(await S.sb.from('post_members').select('user_id,joined_at').eq('post_id', v.post)) || [];
+    var rr = ok(await S.sb.from('room_reads').select('user_id,last_read_at').eq('room_key', 'p:' + v.post)) || [], gr = {};
+    rr.forEach(function (x) { gr[x.user_id] = new Date(x.last_read_at).getTime(); });
+    if (!isRoom(S.view) || S.view.post !== v.post) return;
+    S.gmem = mem; S.greads = gr; paintMsgs(); return;
+  }
   var r = ok(await S.sb.from('room_reads').select('last_read_at').eq('room_key', 'd:' + v.dm).eq('user_id', v.other).maybeSingle());
   S.peerRead = r ? new Date(r.last_read_at).getTime() : 0; paintMsgs();
 }
@@ -206,7 +213,7 @@ function subscribe() {
       later('rooms', loadRooms);
       if (isRoom(v) && ((v.k === 'dm' && n.dm_id === v.dm) || (v.k === 'group' && n.post_id === v.post))) loadMsgs().then(function () { if (n.sender_id !== S.me.id) markRead(); });
     })
-    .on('postgres_changes', q('room_reads'), function () { if (isRoom(S.view) && S.view.k === 'dm') later('peer', loadPeer, 100); later('rooms', loadRooms); })
+    .on('postgres_changes', q('room_reads'), function () { if (isRoom(S.view)) later('peer', loadPeer, 100); later('rooms', loadRooms); })
     .on('postgres_changes', q('post_members'), function () { later('mem', loadMembers, 150); later('posts', loadPosts, 400); later('rooms', loadRooms, 300); })
     .on('postgres_changes', q('posts'), function () { later('posts', loadPosts, 400); })
     .on('postgres_changes', q('friendships'), function () { later('fr', function () { loadFriends().then(loadRooms); }, 200); })
@@ -332,8 +339,9 @@ function paintList() {
   if (!rows) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
   if (!rows.length) { el.innerHTML = '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
   el.innerHTML = rows.map(function (p) {
-    return '<button class="post" data-act="post" data-id="' + p.id + '"><span class="pt">' + esc(p.title) + '</span><span class="pp">' + esc(p.body) + '</span>' + tbox(p, true) +
-      '<span class="pm"><span>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</span><span>' + ago(p.created_at) + '</span>' + capChip(p) + '</span></button>';
+    var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100));
+    return '<button class="post" data-act="post" data-id="' + p.id + '"><span class="ph2">' + av(p.author_id, 30) + '<span class="who2"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</span>' +
+      '<span class="pt">' + esc(p.title) + '</span><span class="pp">' + esc(p.body) + '</span>' + tbox(p, true) + '<span class="pbar" aria-hidden="true"><i style="width:' + pct + '%"></i></span></button>';
   }).join('');
 }
 function paintRooms() {
@@ -410,6 +418,15 @@ function paintPost() {
     (S.members ? joinCard(p) : '<div class="empty">불러오는 중…</div>');
   el.scrollTop = keep;
 }
+/* 단체 채팅: 이 메시지를 아직 안 읽은 사람 수 (보낸 사람·나는 빼요) */
+function gUnread(m) {
+  var t = new Date(m.created_at).getTime(), n = 0;
+  S.gmem.forEach(function (x) {
+    if (x.user_id === m.sender_id || x.user_id === S.me.id || new Date(x.joined_at).getTime() > t) return;
+    var r = S.greads[x.user_id]; if (r === undefined || r < t) n++;
+  });
+  return n;
+}
 function paintMsgs(stick) {
   var el = $('#msgs'); if (!el || !isRoom(S.view)) return;
   var v = S.view, ms = S.msgs, me = S.me.id, dm = v.k === 'dm';
@@ -418,17 +435,21 @@ function paintMsgs(stick) {
   if (!ms.length) { el.innerHTML = '<div class="none">' + (dm ? esc(nick(v.other)) + '님과의 첫 대화를 시작해 보세요.' : '모임 채팅을 시작해 보세요.<br>참여한 뒤의 대화만 볼 수 있어요.') + '</div>'; return; }
   var near = el.scrollHeight - el.scrollTop - el.clientHeight < 90, lastReadMine = null, h = '';
   if (dm) ms.forEach(function (m) { if (m.sender_id === me && new Date(m.created_at).getTime() <= S.peerRead) lastReadMine = m.id; });
+  else ms.forEach(function (m) { if (m.sender_id === me && gUnread(m) === 0 && S.gmem.length) lastReadMine = m.id; });
   ms.forEach(function (m, i) {
     var pv = ms[i - 1], nx = ms[i + 1], mine = m.sender_id === me, sid = m.sender_id || v.other || '';
     var newDay = !pv || dayKey(pv.created_at) !== dayKey(m.created_at);
     var first = newDay || pv.sender_id !== m.sender_id;
     var lastOfMin = !nx || nx.sender_id !== m.sender_id || minKey(nx.created_at) !== minKey(m.created_at) || dayKey(nx.created_at) !== dayKey(m.created_at);
     if (newDay) h += '<div class="dsep"><span>' + dayLabel(m.created_at) + '</span></div>';
-    var meta = '';
+    var meta = '', gn = dm ? 0 : gUnread(m);
     if (mine) {
-      var unread = dm && new Date(m.created_at).getTime() > S.peerRead;
-      meta = (unread ? '<span class="rd" aria-label="상대가 아직 안 읽음">1</span>' : (m.id === lastReadMine ? '<span class="rd on">읽음</span>' : '')) + (lastOfMin ? '<span>' + hm(m.created_at) + '</span>' : '');
-    } else if (lastOfMin) meta = '<span>' + hm(m.created_at) + '</span>';
+      var unread = dm ? new Date(m.created_at).getTime() > S.peerRead : gn > 0;
+      var rtxt = unread ? '<span class="rd" aria-label="아직 안 읽은 사람 ' + (dm ? 1 : gn) + '명">' + (dm ? 1 : gn) + '</span>' : (m.id === lastReadMine ? '<span class="rd on">읽음</span>' : '');
+      meta = rtxt + (lastOfMin ? '<span>' + hm(m.created_at) + '</span>' : '');
+    } else {
+      meta = (gn > 0 ? '<span class="rd" aria-label="아직 안 읽은 사람 ' + gn + '명">' + gn + '</span>' : '') + (lastOfMin ? '<span>' + hm(m.created_at) + '</span>' : '');
+    }
     meta = meta ? '<div class="mmeta">' + meta + '</div>' : '';
     if (mine) h += '<div class="mrow me' + (first ? ' first' : '') + '"><div class="mline">' + meta + '<div class="bub">' + esc(m.body) + '</div></div></div>';
     else h += '<div class="mrow other' + (first ? ' first' : '') + '">' + (first ? av(sid, 36, true) : '<span class="avsp"></span>') +
@@ -530,7 +551,8 @@ async function openRoom(dm, other) {
 }
 async function openGroup(post, title) {
   S.msgs = null; S.repMsg = null; closeSheet(); go({ t: 'room', k: 'group', post: Number(post), title: title });
-  await loadMsgs(); paintMsgs(true); markRead();
+  S.gmem = []; S.greads = {};
+  await Promise.all([loadMsgs(), loadPeer()]); paintMsgs(true); markRead();
 }
 
 /* ───────── 동작 ───────── */
