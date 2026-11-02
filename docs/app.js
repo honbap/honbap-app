@@ -258,7 +258,7 @@ function render() {
   paintList(); paintRooms(); paintPost(); paintReplyBar(); paintMsgs(true); paintBell(); paintNav();
 }
 function nav() {
-  var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['me', 'user', '내 정보'], ['search', 'search', '검색']];
+  var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['search', 'search', '검색'], ['me', 'user', '내 정보']];
   return '<nav class="nav" aria-label="메뉴">' + t.map(function (x) {
     return '<button data-act="tab" data-v="' + x[0] + '"' + (S.tab === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[1]) + x[2] + (x[0] === 'chat' ? '<span class="bdg" id="nbdg" hidden></span>' : '') + '</button>';
   }).join('') + '</nav>';
