@@ -362,3 +362,4 @@ main, .pbody, .msgs, .auth { overscroll-behavior: contain; -webkit-overflow-scro
 .pfoot .tbox .tt { font-size: 13px; font-weight: 400; color: var(--ink2); }
 .tbox .td { font-weight: 500; }
 .jt b { font-weight: 500; font-size: 15px; }
+.seg button .bdg { display: inline-grid; margin-left: 6px; vertical-align: middle; height: 18px; }
