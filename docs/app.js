@@ -9,7 +9,7 @@ var S = {
   sb: null, user: null, me: null, schools: [], tab: 'board', kind: 'meal', chatSeg: 'dm', authMode: 'login', email: '', gender: '', starting: false,
   posts: { meal: null, study: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
   notes: [], blocks: [], likes: [], members: null, replyTo: null, verify: null, resendAt: 0, cap: 4,
-  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, stats: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
+  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, bq: '', sbar: false, sres: null, stats: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
 };
 
 /* ───────── 작은 도구 ───────── */
@@ -29,7 +29,7 @@ function fail(e) { toast(msg(e), true); }
 var ERR = [
   ['Invalid login', '이메일이나 비밀번호가 맞지 않아요.'], ['EMAIL_TAKEN', '이미 가입된 이메일이에요. 로그인해 주세요.'], ['BAD_EMAIL', '이메일 주소를 확인해 주세요.'],
   ['BAD_PASSWORD', '비밀번호는 8자 이상이고 영문과 숫자를 모두 포함해야 해요.'], ['PW_MISMATCH', '비밀번호 확인이 서로 달라요.'], ['NEED_PASSWORD', '비밀번호를 입력해 주세요.'],
-  ['NICKNAME_TAKEN', '같은 학교에 이미 있는 닉네임이에요.'], ['NICKNAME_COOLDOWN', '닉네임은 7일에 한 번만 바꿀 수 있어요.'],
+  ['NICKNAME_TAKEN', '이미 사용 중인 닉네임이에요.'], ['NICKNAME_RESERVED', '사용할 수 없는 닉네임이에요. (운영·관리자 등은 쓸 수 없어요)'], ['NICKNAME_COOLDOWN', '닉네임은 7일에 한 번만 바꿀 수 있어요.'],
   ['BAD_NICKNAME', '닉네임은 2~10자, 한글·영문·숫자·_ 만 쓸 수 있어요.'], ['BAD_SCHOOL', '학교를 골라 주세요.'], ['BAD_GENDER', '남자/여자 중에 골라 주세요.'],
   ['TERMS_REQUIRED', '필수 항목에 모두 동의해야 시작할 수 있어요.'],
   ['BAD_TITLE', '제목은 1~40자로 써 주세요.'], ['BAD_BODY', '내용은 1~1000자로 써 주세요.'], ['BAD_COMMENT', '댓글은 1~200자로 써 주세요.'], ['BAD_MESSAGE', '메시지는 1~500자로 써 주세요.'],
@@ -266,7 +266,8 @@ function nav() {
 function vMain() {
   var body;
   if (S.tab === 'board') {
-    body = '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('notes', 'bell', '알림') + '</div></div>' +
+    body = '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('bsearch', 'search', '게시글 검색') + ib('notes', 'bell', '알림') + '</div></div>' +
+      (S.sbar ? '<div class="sbar"><input type="text" id="bq" maxlength="30" placeholder="제목·내용 검색" value="' + esc(S.bq) + '" autocomplete="off" aria-label="게시글 검색"><button class="btn sm" data-act="bdo">검색</button><button class="linkbtn" data-act="bclear">닫기</button></div>' : '') +
       '<div class="tabs" role="tablist">' + [['meal', '밥'], ['study', '공부']].map(function (k) {
         return '<button role="tab" data-act="kind" data-v="' + k[0] + '" aria-selected="' + (S.kind === k[0]) + '">' + k[1] + '</button>';
       }).join('') + '</div><main id="list"></main><button class="fab" data-act="compose" aria-label="글쓰기">' + ic('plus') + '</button>';
@@ -363,9 +364,9 @@ function capChip(p) {
 }
 function paintList() {
   var el = $('#list'); if (!el || S.tab !== 'board') return;
-  var rows = S.posts[S.kind];
+  var searching = S.sres !== null, rows = searching ? S.sres : S.posts[S.kind];
   if (!rows) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
-  if (!rows.length) { el.innerHTML = '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
+  if (!rows.length) { el.innerHTML = searching ? '<div class="empty">검색 결과가 없어요.</div>' : '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
   el.innerHTML = rows.map(function (p) {
     var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100)), mine = S.myPosts[p.id], full = (p.member_count || 0) >= p.capacity;
     var btn = mine ? '<button class="jbtn go" data-act="gochat" data-id="' + p.id + '" data-title="' + esc(p.title) + '">채팅 열기 ›</button>' :
@@ -597,7 +598,16 @@ var H = {
   back: function () { back(); },
   mode: function (el) { S.email = ($('#em') || {}).value || ''; S.authMode = el.dataset.v; render(); },
   tab: function (el) { S.tab = el.dataset.v; render(); if (S.tab === 'search') setTimeout(function () { var q = $('#fq'); if (q) q.focus(); }, 60); if (S.tab === 'board' && !S.posts[S.kind]) loadPosts().catch(fail); if (S.tab === 'chat') loadRooms().catch(fail); },
-  kind: function (el) { S.kind = el.dataset.v; render(); loadPosts().catch(fail); },
+  bsearch: function () { S.sbar = !S.sbar; if (!S.sbar) { S.sres = null; S.bq = ''; } render(); if (S.sbar) setTimeout(function () { var q = $('#bq'); if (q) q.focus(); }, 60); },
+  bclear: function () { S.sbar = false; S.sres = null; S.bq = ''; render(); },
+  bdo: async function () {
+    var q = (($('#bq') || {}).value || '').trim().replace(/[,()%_\\*]/g, ' ').trim(); S.bq = q;
+    if (!q) { S.sres = null; paintList(); return; }
+    var rows = ok(await S.sb.from('post_feed').select('*').eq('kind', S.kind).eq('hidden', false).or('title.ilike.%' + q + '%,body.ilike.%' + q + '%').order('id', { ascending: false }).limit(60)) || [];
+    await loadNames(rows.map(function (r) { return r.author_id; }));
+    S.sres = rows; paintList();
+  },
+  kind: function (el) { S.kind = el.dataset.v; S.sres = null; render(); if (S.sbar && S.bq) { var qq = $('#bq'); if (qq) qq.value = S.bq; } loadPosts().catch(fail); },
   chatseg: function (el) { S.chatSeg = el.dataset.v; paintRooms(); },
   gender: function (el) { document.querySelectorAll('#sg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b === el)); }); S.gender = el.dataset.v; },
   auth: async function () {
@@ -792,7 +802,7 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') { closeSheet(); return; }
   if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('post')) { e.preventDefault(); e.target.click(); return; }
   if (e.key !== 'Enter' || e.isComposing || e.shiftKey) return;
-  var map = { pw: 'auth', pw2: 'auth', em: 'auth', vc: 'verify', ci: 'addcmt', mi: 'sendmsg', fq: 'fdo' }, a = map[e.target.id];
+  var map = { bq: 'bdo', pw: 'auth', pw2: 'auth', em: 'auth', vc: 'verify', ci: 'addcmt', mi: 'sendmsg', fq: 'fdo' }, a = map[e.target.id];
   if (a) { e.preventDefault(); var b = document.querySelector('[data-act="' + a + '"]'); if (b) b.click(); }
 });
 document.addEventListener('visibilitychange', function () {

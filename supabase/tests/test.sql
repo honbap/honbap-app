@@ -104,6 +104,12 @@ select update_profile('나무숲2');
 select t.ok((select nickname from profiles where id = auth.uid()) = '나무숲2', '7일이 지나면 다시 변경 가능');
 reset role;
 update public.profiles set nickname = '나무숲', nickname_changed_at = null where id = :'bob';
+\echo === 닉네임은 전체에서 하나만, 운영자 이름은 예약
+select set_config('request.jwt.claims', json_build_object('sub', :'frank')::text, false);
+set role authenticated;
+select t.fails($$select update_profile('도토리')$$, 'NICKNAME_TAKEN');
+select t.fails($$select update_profile('운영자2')$$, 'NICKNAME_RESERVED');
+reset role;
 set role authenticated;
 reset role;
 

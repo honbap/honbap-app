@@ -392,3 +392,7 @@ main.mepage { background: var(--bg); padding: 4px 12px 24px; }
 .sw:disabled { opacity: 1; cursor: default; }
 @media (prefers-reduced-motion: reduce) { .sw, .sw i { transition: none; } }
 .seg button .bdg { display: inline-grid; margin-left: 6px; vertical-align: middle; height: 18px; }
+
+/* 게시글 검색 */
+.sbar { display: flex; align-items: center; gap: 8px; padding: 0 12px 10px; background: var(--surface); }
+.sbar input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface2); border-radius: 12px; padding: 10px 12px; }
