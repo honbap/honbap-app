@@ -9,7 +9,7 @@ var S = {
   sb: null, user: null, me: null, schools: [], tab: 'board', kind: 'meal', chatSeg: 'dm', authMode: 'login', email: '', gender: '', starting: false,
   posts: { meal: null, study: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
   notes: [], blocks: [], likes: [], members: null, replyTo: null, verify: null, resendAt: 0, cap: 4,
-  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, bq: '', sbar: false, sres: null, stats: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
+  view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, sq: '', sk: 'all', psr: null, sort: 'new', stats: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
 };
 
 /* ───────── 작은 도구 ───────── */
@@ -255,7 +255,7 @@ function render() {
   else h = vMain();
   el.innerHTML = '<div class="view">' + h + '</div>';
   var nt = $('#notice'); if (nt) nt.hidden = S.seenNotice || !!S.me;
-  paintList(); paintRooms(); paintPost(); paintReplyBar(); paintMsgs(true); paintBell(); paintNav();
+  paintList(); paintSearch(); paintRooms(); paintPost(); paintReplyBar(); paintMsgs(true); paintBell(); paintNav();
 }
 function nav() {
   var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['search', 'search', '검색'], ['me', 'user', '내 정보']];
@@ -267,16 +267,54 @@ function vMain() {
   var body;
   if (S.tab === 'board') {
     body = '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('bsearch', 'search', '게시글 검색') + ib('notes', 'bell', '알림') + '</div></div>' +
-      (S.sbar ? '<div class="sbar"><input type="text" id="bq" maxlength="30" placeholder="제목·내용 검색" value="' + esc(S.bq) + '" autocomplete="off" aria-label="게시글 검색"><button class="btn sm" data-act="bdo">검색</button><button class="linkbtn" data-act="bclear">닫기</button></div>' : '') +
       '<div class="tabs" role="tablist">' + [['meal', '밥'], ['study', '공부']].map(function (k) {
         return '<button role="tab" data-act="kind" data-v="' + k[0] + '" aria-selected="' + (S.kind === k[0]) + '">' + k[1] + '</button>';
       }).join('') + '</div><main id="list"></main><button class="fab" data-act="compose" aria-label="글쓰기">' + ic('plus') + '</button>';
   } else if (S.tab === 'chat') {
     body = '<div class="top"><h1>채팅</h1></div><main id="rooms"></main>';
   } else if (S.tab === 'search') {
-    body = '<div class="top"><h1>검색</h1></div><main class="mepage"><section class="mcard"><div class="mh"><span class="mi">' + ic('userplus') + '</span><div class="mt"><b>친구 찾기</b><small>같은 학교 사람을 닉네임으로 찾아요.</small></div></div><div class="inline"><input type="text" id="fq" maxlength="10" placeholder="닉네임" autocomplete="off" aria-label="닉네임 검색"><button class="btn" data-act="fdo">검색</button></div><div id="fres" style="margin-top:8px"></div></section></main>';
+    body = vSearch();
   } else body = vMe();
   return body + nav();
+}
+function vSearch() {
+  var tabs = [['all', '전체'], ['meal', '밥'], ['study', '공부'], ['friend', '친구']];
+  return '<div class="top"><h1>검색</h1></div><main class="spage"><div class="sinp">' + ic('search') + '<input type="text" id="sq" maxlength="30" placeholder="검색어를 입력하세요" value="' + esc(S.sq) + '" autocomplete="off" aria-label="검색어"><button class="sclr" data-act="sclr" aria-label="지우기"' + (S.sq ? '' : ' hidden') + '>' + ic('close') + '</button></div>' +
+    '<p class="shint" id="shint"></p><div class="tabs" role="tablist">' + tabs.map(function (k) { return '<button role="tab" data-act="sk" data-v="' + k[0] + '" aria-selected="' + (S.sk === k[0]) + '">' + k[1] + '</button>'; }).join('') + '</div><div id="sres"></div></main>';
+}
+function hlText(t, q) {
+  var e = esc(t), qe = esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return qe ? e.replace(new RegExp(qe, 'gi'), function (m) { return '<mark>' + m + '</mark>'; }) : e;
+}
+function paintSearch() {
+  var el = $('#sres'); if (!el || S.tab !== 'search') return;
+  document.querySelectorAll('.spage [data-act=sk]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.v === S.sk)); });
+  var cl = document.querySelector('.sclr'); if (cl) cl.hidden = !S.sq;
+  var hint = $('#shint'); if (hint) hint.textContent = S.sk === 'friend' ? '같은 학교 사람을 닉네임으로 찾아요' : '제목과 내용에서 검색해요';
+  if (S.sk === 'friend') { if (!$('#fres')) el.innerHTML = '<div id="fres" class="fres"></div>'; return; }
+  if (!S.sq) { el.innerHTML = '<div class="empty">찾고 싶은 글의 단어를 입력해 보세요.</div>'; return; }
+  if (S.psr === null) { el.innerHTML = '<div class="empty">검색 중…</div>'; return; }
+  var rows = S.psr.slice();
+  if (S.sort === 'old') rows.sort(function (a, b) { return a.id - b.id; });
+  else if (S.sort === 'pop') rows.sort(function (a, b) { return (b.member_count || 0) - (a.member_count || 0) || b.id - a.id; });
+  else rows.sort(function (a, b) { return b.id - a.id; });
+  el.innerHTML = '<div class="sum"><span>' + ic('search') + '<span>\'' + esc(S.sq) + '\' 검색 결과 <b>' + rows.length + '개</b></span></span>' +
+    '<select id="ssort" aria-label="정렬">' + [['new', '최신순'], ['old', '오래된순'], ['pop', '참여많은순']].map(function (o) { return '<option value="' + o[0] + '"' + (S.sort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
+    (rows.length ? '<div class="sr">' + rows.map(function (p) { return postCard(p, S.sq); }).join('') + '</div>' : '<div class="empty">검색 결과가 없어요.</div>');
+}
+async function runSearch() {
+  var q = (($('#sq') || {}).value || '').trim(); S.sq = q;
+  if (S.sk === 'friend') { paintSearch(); await doSearch(); return; }
+  var safe = q.replace(/[,()%_\\*]/g, ' ').trim();
+  if (!safe) { S.psr = null; paintSearch(); return; }
+  S.psr = null; paintSearch();
+  var query = S.sb.from('post_feed').select('*').eq('hidden', false);
+  if (S.sk !== 'all') query = query.eq('kind', S.sk);
+  var rows = ok(await query.or('title.ilike.%' + safe + '%,body.ilike.%' + safe + '%').order('id', { ascending: false }).limit(100)) || [];
+  await loadNames(rows.map(function (r) { return r.author_id; }));
+  var mm = ok(await S.sb.from('post_members').select('post_id').eq('user_id', S.me.id)) || [], my = {};
+  mm.forEach(function (x) { my[x.post_id] = 1; }); S.myPosts = my;
+  if (($('#sq') || {}).value && S.sq === q) { S.psr = rows; paintSearch(); }
 }
 function vMe() {
   var bl = S.blocks.map(function (id) { return '<div class="fl">' + av(id, 34) + '<div class="tx">' + esc(nick(id)) + '</div><button class="btn sm sec" data-act="unblock" data-u="' + esc(id) + '">해제</button></div>'; }).join('');
@@ -362,19 +400,20 @@ function capChip(p) {
   if (p.closed || full) return '<span class="capc off">' + (p.closed ? '마감' : '정원 마감') + ' ' + n + '/' + p.capacity + '</span>';
   return '<span class="capc">' + ic('group') + '참여 ' + n + '/' + p.capacity + '</span>';
 }
-function paintList() {
-  var el = $('#list'); if (!el || S.tab !== 'board') return;
-  var searching = S.sres !== null, rows = searching ? S.sres : S.posts[S.kind];
-  if (!rows) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
-  if (!rows.length) { el.innerHTML = searching ? '<div class="empty">검색 결과가 없어요.</div>' : '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
-  el.innerHTML = rows.map(function (p) {
+function postCard(p, hl) {
     var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100)), mine = S.myPosts[p.id], full = (p.member_count || 0) >= p.capacity;
     var btn = mine ? '<button class="jbtn go" data-act="gochat" data-id="' + p.id + '" data-title="' + esc(p.title) + '">채팅 열기 ›</button>' :
       (p.closed || full ? '<button class="jbtn" disabled>' + (p.closed ? '마감' : '정원 마감') + '</button>' : '<button class="jbtn" data-act="quickjoin" data-id="' + p.id + '">참여하기 ›</button>');
     return '<div class="post" role="button" tabindex="0" data-act="post" data-id="' + p.id + '"><div class="ph2">' + av(p.author_id, 34) + '<span class="who2"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</div>' +
-      '<div class="pt">' + esc(p.title) + '</div><div class="pp">' + esc(p.body) + '</div>' +
+      '<div class="pt">' + (hl ? hlText(p.title, hl) : esc(p.title)) + '</div><div class="pp">' + (hl ? hlText(p.body, hl) : esc(p.body)) + '</div>' +
       '<div class="pfoot">' + (p.starts_at ? tbox(p, false) : '<span class="notm">모이는 시간 미정</span>') + btn + '</div><div class="pbar" aria-hidden="true"><i style="width:' + pct + '%"></i></div></div>';
-  }).join('');
+}
+function paintList() {
+  var el = $('#list'); if (!el || S.tab !== 'board') return;
+  var searching = false, rows = S.posts[S.kind];
+  if (!rows) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
+  if (!rows.length) { el.innerHTML = searching ? '<div class="empty">검색 결과가 없어요.</div>' : '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
+  el.innerHTML = rows.map(function (p) { return postCard(p); }).join('');
 }
 function paintRooms() {
   var el = $('#rooms'); if (!el) return;
@@ -538,7 +577,7 @@ function openSearch() {
   openSheet('<h3>친구 추가</h3><p class="sub" style="margin-bottom:8px">같은 학교 사람의 닉네임으로 찾아요.</p><div class="inline"><input type="text" id="fq" maxlength="10" placeholder="닉네임" autocomplete="off" aria-label="닉네임 검색"><button class="btn" data-act="fdo">검색</button></div><div id="fres" style="margin-top:8px"></div>');
 }
 async function doSearch() {
-  var q = (($('#fq') || {}).value || '').trim(), el = $('#fres'); if (!el) return;
+  var q = (($('#sq') || $('#fq') || {}).value || '').trim(), el = $('#fres'); if (!el) return;
   if (!q) { el.innerHTML = ''; return; }
   var like = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
   var rows = ok(await S.sb.from('profiles').select('id,nickname,gender').eq('school_id', S.me.school_id).neq('id', S.me.id).ilike('nickname', like).limit(20)) || [];
@@ -597,17 +636,12 @@ var H = {
   close: function () { closeSheet(); },
   back: function () { back(); },
   mode: function (el) { S.email = ($('#em') || {}).value || ''; S.authMode = el.dataset.v; render(); },
-  tab: function (el) { S.tab = el.dataset.v; render(); if (S.tab === 'search') setTimeout(function () { var q = $('#fq'); if (q) q.focus(); }, 60); if (S.tab === 'board' && !S.posts[S.kind]) loadPosts().catch(fail); if (S.tab === 'chat') loadRooms().catch(fail); },
-  bsearch: function () { S.sbar = !S.sbar; if (!S.sbar) { S.sres = null; S.bq = ''; } render(); if (S.sbar) setTimeout(function () { var q = $('#bq'); if (q) q.focus(); }, 60); },
-  bclear: function () { S.sbar = false; S.sres = null; S.bq = ''; render(); },
-  bdo: async function () {
-    var q = (($('#bq') || {}).value || '').trim().replace(/[,()%_\\*]/g, ' ').trim(); S.bq = q;
-    if (!q) { S.sres = null; paintList(); return; }
-    var rows = ok(await S.sb.from('post_feed').select('*').eq('kind', S.kind).eq('hidden', false).or('title.ilike.%' + q + '%,body.ilike.%' + q + '%').order('id', { ascending: false }).limit(60)) || [];
-    await loadNames(rows.map(function (r) { return r.author_id; }));
-    S.sres = rows; paintList();
-  },
-  kind: function (el) { S.kind = el.dataset.v; S.sres = null; render(); if (S.sbar && S.bq) { var qq = $('#bq'); if (qq) qq.value = S.bq; } loadPosts().catch(fail); },
+  tab: function (el) { S.tab = el.dataset.v; render(); if (S.tab === 'search') setTimeout(function () { var q = $('#sq'); if (q) q.focus(); }, 60); if (S.tab === 'board' && !S.posts[S.kind]) loadPosts().catch(fail); if (S.tab === 'chat') loadRooms().catch(fail); },
+  bsearch: function () { S.tab = 'search'; render(); setTimeout(function () { var q = $('#sq'); if (q) q.focus(); }, 60); },
+  sk: function (el) { S.sk = el.dataset.v; S.psr = null; paintSearch(); if (S.sq) return runSearch(); },
+  sclr: function () { var i = $('#sq'); if (i) { i.value = ''; i.focus(); } S.sq = ''; S.psr = null; paintSearch(); var f = $('#fres'); if (f) f.innerHTML = ''; },
+  sdo: function () { return runSearch(); },
+  kind: function (el) { S.kind = el.dataset.v; render(); loadPosts().catch(fail); },
   chatseg: function (el) { S.chatSeg = el.dataset.v; paintRooms(); },
   gender: function (el) { document.querySelectorAll('#sg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b === el)); }); S.gender = el.dataset.v; },
   auth: async function () {
@@ -785,7 +819,11 @@ document.addEventListener('click', async function (e) {
   S.busy = true;
   try { await H[el.dataset.act](el); } catch (x) { fail(x); } finally { S.busy = false; }
 });
+document.addEventListener('input', function (e) {
+  if (e.target.id === 'sq') { S.sq = e.target.value.trim(); var c = document.querySelector('.sclr'); if (c) c.hidden = !S.sq; later('sq', function () { runSearch().catch(fail); }, 350); }
+});
 document.addEventListener('change', function (e) {
+  if (e.target.id === 'ssort') { S.sort = e.target.value; paintSearch(); return; }
   if (e.target.id === 'ctm') {
     var f = $('#tmf'); f.hidden = !e.target.checked;
     if (e.target.checked && !$('#cd').value) {
@@ -802,7 +840,8 @@ document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') { closeSheet(); return; }
   if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('post')) { e.preventDefault(); e.target.click(); return; }
   if (e.key !== 'Enter' || e.isComposing || e.shiftKey) return;
-  var map = { bq: 'bdo', pw: 'auth', pw2: 'auth', em: 'auth', vc: 'verify', ci: 'addcmt', mi: 'sendmsg', fq: 'fdo' }, a = map[e.target.id];
+  if (e.target.id === 'sq') { e.preventDefault(); runSearch().catch(fail); return; }
+  var map = { pw: 'auth', pw2: 'auth', em: 'auth', vc: 'verify', ci: 'addcmt', mi: 'sendmsg', fq: 'fdo' }, a = map[e.target.id];
   if (a) { e.preventDefault(); var b = document.querySelector('[data-act="' + a + '"]'); if (b) b.click(); }
 });
 document.addEventListener('visibilitychange', function () {

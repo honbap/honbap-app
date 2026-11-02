@@ -396,3 +396,22 @@ main.mepage { background: var(--bg); padding: 4px 12px 24px; }
 /* 게시글 검색 */
 .sbar { display: flex; align-items: center; gap: 8px; padding: 0 12px 10px; background: var(--surface); }
 .sbar input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--surface2); border-radius: 12px; padding: 10px 12px; }
+
+/* 검색 화면 */
+main.spage { background: var(--bg); padding: 0 0 24px; }
+.spage .sinp { display: flex; align-items: center; gap: 10px; margin: 8px 12px 0; padding: 0 12px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 18px; }
+.spage .sinp .ic { width: 22px; height: 22px; color: var(--ink2); flex: none; }
+.spage .sinp input { flex: 1; min-width: 0; border: 0; background: none; padding: 14px 0; outline: none; }
+.sclr { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--surface2); color: var(--ink2); display: grid; place-items: center; padding: 0; }
+.sclr .ic { width: 16px; height: 16px; }
+.shint { margin: 6px 16px 8px; font-size: 12.5px; color: var(--ink2); }
+.spage .tabs { background: var(--surface); }
+.sum { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 12px; padding: 8px 12px; background: var(--accent-soft); border-radius: 14px; font-size: 13.5px; color: var(--ink2); }
+.sum > span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sum .ic { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.sum b { color: var(--accent); }
+.sum select { border: 0; background: var(--surface); color: var(--accent); border-radius: 999px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
+.sr .post .pp { display: -webkit-box; }
+mark { background: none; color: var(--accent); font-weight: 700; }
+.fres { margin: 10px 12px; padding: 0 12px; background: var(--surface); border-radius: 16px; }
+.sum select { width: auto; flex: none; } .sum > span > span { line-height: 1.3; }
