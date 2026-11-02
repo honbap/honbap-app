@@ -17,7 +17,7 @@ var ICON = {
   back: 'M15 5l-7 7 7 7', plus: 'M12 5v14M5 12h14', bell: 'M6 9a6 6 0 0112 0c0 5 2 6 2 7H4c0-1 2-2 2-7zM10 20a2 2 0 004 0',
   send: 'M4 12l16-8-6 16-3-7-7-1z', chat: 'M4 5h16v11H9l-5 4z', board: 'M5 4h14v16H5zM9 9h6M9 13h6',
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6', more: 'M12 6v.01M12 12v.01M12 18v.01',
-  userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
+  search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3', userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
   pencil: 'M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4', ban: 'M12 21a9 9 0 100-18 9 9 0 000 18zM6 6l12 12', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01', chev: 'M9 5l7 7-7 7', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
   group: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.5 3.5 0 010 6.5M18 14.5c2.5.5 4 2.2 4 5.5'
 };
@@ -78,10 +78,10 @@ function nick(id) { var u = S.names[id]; return u ? u.nickname : '알 수 없음
 function gl(id) { var u = S.names[id]; return u && u.gender === '남성' ? '남' : u && u.gender === '여성' ? '여' : ''; }
 function hue(id) { var h = 0, s = String(id || ''); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
 function av(id, size, act) {
-  var st = ' style="--s:' + size + 'px;--h:' + hue(id) + '"', ch = esc(nick(id).charAt(0));
-  return act ? '<button class="avatar" data-act="user" data-u="' + esc(id) + '" aria-label="' + esc(nick(id)) + ' 프로필"' + st + '>' + ch + '</button>' : '<span class="avatar" aria-hidden="true"' + st + '>' + ch + '</span>';
+  var st = ' style="--s:' + size + 'px"', inner = ic('user');
+  return act ? '<button class="avatar anon" data-act="user" data-u="' + esc(id) + '" aria-label="' + esc(nick(id)) + ' 프로필"' + st + '>' + inner + '</button>' : '<span class="avatar anon" aria-hidden="true"' + st + '>' + inner + '</span>';
 }
-function gav(post, title, size) { return '<span class="avatar sq" aria-hidden="true" style="--s:' + size + 'px;--h:' + hue('p' + post) + '">' + esc(String(title || '모').charAt(0)) + '</span>'; }
+function gav(post, title, size) { return '<span class="avatar anon sq" aria-hidden="true" style="--s:' + size + 'px">' + ic('group') + '</span>'; }
 var timers = {};
 function later(k, fn, ms) { clearTimeout(timers[k]); timers[k] = setTimeout(fn, ms == null ? 250 : ms); }
 function schoolName(id) { for (var i = 0; i < S.schools.length; i++) if (S.schools[i].id === id) return S.schools[i].name; return ''; }
@@ -258,7 +258,7 @@ function render() {
   paintList(); paintRooms(); paintPost(); paintReplyBar(); paintMsgs(true); paintBell(); paintNav();
 }
 function nav() {
-  var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['me', 'user', '내 정보']];
+  var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['me', 'user', '내 정보'], ['search', 'search', '검색']];
   return '<nav class="nav" aria-label="메뉴">' + t.map(function (x) {
     return '<button data-act="tab" data-v="' + x[0] + '"' + (S.tab === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[1]) + x[2] + (x[0] === 'chat' ? '<span class="bdg" id="nbdg" hidden></span>' : '') + '</button>';
   }).join('') + '</nav>';
@@ -271,7 +271,9 @@ function vMain() {
         return '<button role="tab" data-act="kind" data-v="' + k[0] + '" aria-selected="' + (S.kind === k[0]) + '">' + k[1] + '</button>';
       }).join('') + '</div><main id="list"></main><button class="fab" data-act="compose" aria-label="글쓰기">' + ic('plus') + '</button>';
   } else if (S.tab === 'chat') {
-    body = '<div class="top"><h1>채팅</h1><div class="acts">' + ib('fsearch', 'userplus', '친구 추가') + '</div></div><main id="rooms"></main>';
+    body = '<div class="top"><h1>채팅</h1></div><main id="rooms"></main>';
+  } else if (S.tab === 'search') {
+    body = '<div class="top"><h1>검색</h1></div><main class="mepage"><section class="mcard"><div class="mh"><span class="mi">' + ic('userplus') + '</span><div class="mt"><b>친구 찾기</b><small>같은 학교 사람을 닉네임으로 찾아요.</small></div></div><div class="inline"><input type="text" id="fq" maxlength="10" placeholder="닉네임" autocomplete="off" aria-label="닉네임 검색"><button class="btn" data-act="fdo">검색</button></div><div id="fres" style="margin-top:8px"></div></section></main>';
   } else body = vMe();
   return body + nav();
 }
@@ -594,7 +596,7 @@ var H = {
   close: function () { closeSheet(); },
   back: function () { back(); },
   mode: function (el) { S.email = ($('#em') || {}).value || ''; S.authMode = el.dataset.v; render(); },
-  tab: function (el) { S.tab = el.dataset.v; render(); if (S.tab === 'board' && !S.posts[S.kind]) loadPosts().catch(fail); if (S.tab === 'chat') loadRooms().catch(fail); },
+  tab: function (el) { S.tab = el.dataset.v; render(); if (S.tab === 'search') setTimeout(function () { var q = $('#fq'); if (q) q.focus(); }, 60); if (S.tab === 'board' && !S.posts[S.kind]) loadPosts().catch(fail); if (S.tab === 'chat') loadRooms().catch(fail); },
   kind: function (el) { S.kind = el.dataset.v; render(); loadPosts().catch(fail); },
   chatseg: function (el) { S.chatSeg = el.dataset.v; paintRooms(); },
   gender: function (el) { document.querySelectorAll('#sg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b === el)); }); S.gender = el.dataset.v; },
