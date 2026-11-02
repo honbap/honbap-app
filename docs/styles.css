@@ -342,3 +342,9 @@ main#list { background: var(--bg); padding: 8px 0 100px; }
 .row2 .rt small { color: var(--ink2); font-size: 12.5px; }
 .obtn { flex: none; border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 10px 14px; font-weight: 700; font-size: 14px; color: var(--ink); }
 .dt { color: var(--ink); } .post .pp { display: none; }
+
+/* 아이폰: 화면이 멋대로 커지거나 줄어드는 것 방지 */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#app { height: 100vh; height: 100dvh; }
+input, select, textarea { font-size: 16px; }
+main, .pbody, .msgs, .auth { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
