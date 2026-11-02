@@ -354,3 +354,8 @@ main, .pbody, .msgs, .auth { overscroll-behavior: contain; -webkit-overflow-scro
 .bar { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
 .auth { padding-top: calc(env(safe-area-inset-top, 0px) + 32px); }
 html { background: var(--surface); }
+
+/* 상단 상태바 영역과 겹치지 않게 (viewport-fit=cover 제거에 맞춰 여백 정리) */
+.top { padding-top: calc(env(safe-area-inset-top, 0px) + 12px); }
+.bar { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
+.auth { padding-top: calc(env(safe-area-inset-top, 0px) + 28px); }
