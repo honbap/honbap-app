@@ -209,7 +209,9 @@ async function hardLogout(message, isErr) {
 }
 var chan = null;
 /* 알림: 앱을 보고 있으면 화면 위 알림, 다른 탭/백그라운드면 브라우저 알림 */
+function notifyOff() { try { return localStorage.getItem('hb_notify_off') === '1'; } catch (e) { return false; } }
 function ping(title, body) {
+  if (notifyOff()) return;
   if (document.visibilityState === 'visible') { toast(title + (body ? ' ' + body : '')); return; }
   try { if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '', icon: 'icon-192.png', tag: 'honbap' }); } catch (e) { /* 무시 */ }
 }
@@ -294,16 +296,17 @@ function rlWheel(r) {
 function vWheel() {
   var r = rlLoad();
   var ppl = r.people.map(function (n, i) {
-    return '<div class="rlp' + (r.bet === i ? ' lose' : '') + '" data-i="' + i + '"><span class="avatar anon" style="width:44px;height:44px"></span><small>' + esc(n) + '</small></div>';
+    return '<div class="rlp' + (r.bet === i ? ' lose' : '') + '" data-i="' + i + '">' + av(n, 44) + '<small>' + esc(n) + '</small><span class="die" id="die' + i + '">' + (r.dice && r.dice[i] ? DIE[r.dice[i] - 1] : '') + '</span></div>';
   }).join('');
   return '<div class="top"><h1>함께 정하기</h1></div><main class="rlpage">' +
     '<section class="mcard"><div class="mh"><span class="mi">' + ic('wheel') + '</span><div class="mt"><b>점심 추천 돌림판</b><small>뭐 먹을지 모르겠다면 돌려 보세요</small></div></div>' +
     '<div id="rlbox">' + rlWheel(r) + '</div><p class="rlres" id="rlres" aria-live="polite">' + rlResHtml(r) + '</p>' +
     '<div class="row"><button class="btn" data-act="rlspin"' + (r.spinning ? ' disabled' : '') + '>돌리기</button><button class="btn sec" data-act="rledit">메뉴 수정</button></div></section>' +
-    '<section class="mcard"><div class="mh"><span class="mi">' + ic('group') + '</span><div class="mt"><b>저녁 내기</b><small>걸린 사람이 쏘기! 🍻</small></div></div>' +
+    '<section class="mcard"><div class="mh"><span class="mi">' + ic('group') + '</span><div class="mt"><b>밥 내기</b><small>걸린 사람이 밥 쏘기! 🍚</small></div></div>' +
     '<div class="rlppl" id="rlppl">' + ppl + '<button class="rladd" data-act="rlpeople" aria-label="참여자 추가">+</button></div>' +
-    '<p class="rlres" id="rlbet" aria-live="polite">' + (r.bet != null ? '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 쏩니다!' : '') + '</p>' +
-    '<div class="row"><button class="btn sec" data-act="rlpeople">참여자 추가</button><button class="btn" data-act="rlbet">내기 시작</button></div></section></main>';
+    '<p class="rlres" id="rlbet" aria-live="polite">' + (r.bet != null ? '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 밥 쏩니다!' : '') + '</p>' +
+    '<div class="row"><button class="btn sec" data-act="rlpeople">참여자 추가</button><button class="btn" data-act="rlbet">내기 시작</button></div>' +
+    '<div class="row" style="margin-top:8px"><button class="btn sec" data-act="rldice">🎲 주사위 내기 <small style="font-weight:500">(가장 낮은 눈이 쏘기)</small></button></div></section></main>';
 }
 function rlResHtml(r) {
   return r.res == null ? '' : '🎉 오늘은 <b>' + esc(r.menus[r.res][0] + ' ' + r.menus[r.res][1]) + '</b>!<br><button class="btn sm sec" data-act="rlpost">이 메뉴로 같이 먹을 사람 구하기</button>';
@@ -322,18 +325,45 @@ function rlSpin() {
     var b = $('[data-act="rlspin"]'); if (b) b.disabled = false;
   }, 4100);
 }
+var DIE = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+function rlDice() {
+  var r = rlLoad(); if (r.spinning) return;
+  if (r.people.length < 2) { toast('참여자를 2명 이상 넣어 주세요.', true); return; }
+  r.spinning = true; r.bet = null; r.dice = null;
+  var n = r.people.length, bt = $('#rlbet'), els = document.querySelectorAll('.rlp');
+  for (var j = 0; j < els.length; j++) els[j].classList.remove('lose', 'hi');
+  var cand = r.people.map(function (_, i) { return i; }), vals = new Array(n).fill(0), round = 0;
+  function roll() {
+    round++; var k = 0;
+    if (bt) bt.textContent = round === 1 ? '주사위를 굴려요… 🎲' : '동점! 걸린 사람끼리 다시 굴려요 🎲';
+    var iv = setInterval(function () {
+      cand.forEach(function (i) { var d = $('#die' + i); if (d) d.textContent = DIE[rlRand(6)]; });
+      if (++k < 14) return;
+      clearInterval(iv);
+      cand.forEach(function (i) { vals[i] = 1 + rlRand(6); var d = $('#die' + i); if (d) d.textContent = DIE[vals[i] - 1]; });
+      var low = Math.min.apply(null, cand.map(function (i) { return vals[i]; }));
+      cand = cand.filter(function (i) { return vals[i] === low; });
+      r.dice = vals.slice();
+      if (cand.length > 1 && round < 5) { setTimeout(roll, 900); return; }
+      var lose = cand[rlRand(cand.length)]; r.spinning = false; r.bet = lose;
+      var e2 = document.querySelectorAll('.rlp'); for (var q = 0; q < e2.length; q++) e2[q].classList.toggle('lose', q === lose);
+      var b2 = $('#rlbet'); if (b2) b2.innerHTML = '😭 <b>' + esc(r.people[lose]) + '</b> 님이 밥 쏩니다!';
+    }, 70);
+  }
+  roll();
+}
 function rlBet() {
   var r = rlLoad(); if (r.spinning) return;
   if (r.people.length < 2) { toast('참여자를 2명 이상 넣어 주세요.', true); return; }
   var final = rlRand(r.people.length), steps = 20 + rlRand(r.people.length), k = 0, total = steps * r.people.length + ((final - (steps * r.people.length) % r.people.length) + r.people.length) % r.people.length;
-  r.spinning = true; r.bet = null; var bt = $('#rlbet'); if (bt) bt.textContent = '두근두근…';
+  r.spinning = true; r.bet = null; r.dice = null; var bt = $('#rlbet'); if (bt) bt.textContent = '두근두근…'; document.querySelectorAll('.die').forEach(function (d) { d.textContent = ''; });
   (function tick() {
     var els = document.querySelectorAll('.rlp');
     for (var j = 0; j < els.length; j++) els[j].classList.toggle('hi', j === k % r.people.length);
     if (k >= total) {
       r.spinning = false; r.bet = k % r.people.length;
       for (var j2 = 0; j2 < els.length; j2++) { els[j2].classList.remove('hi'); els[j2].classList.toggle('lose', j2 === r.bet); }
-      var b2 = $('#rlbet'); if (b2) b2.innerHTML = '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 쏩니다!';
+      var b2 = $('#rlbet'); if (b2) b2.innerHTML = '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 밥 쏩니다!';
       return;
     }
     k++; setTimeout(tick, 70 + Math.floor(k * k / 6));
@@ -349,7 +379,7 @@ function rlEdit() {
 function rlPeople() {
   var r = rlLoad();
   openSheet('<h3>참여자 추가</h3><div id="rlpe">' + r.people.map(function (n, i) {
-    return '<div class="fl"><span class="avatar anon" style="width:34px;height:34px"></span><div class="tx">' + esc(n) + '</div><button class="btn sm sec" data-act="rlpdel" data-i="' + i + '"' + (r.people.length <= 1 ? ' disabled' : '') + '>삭제</button></div>';
+    return '<div class="fl">' + av(n, 34) + '<div class="tx">' + esc(n) + '</div><button class="btn sm sec" data-act="rlpdel" data-i="' + i + '"' + (r.people.length <= 1 ? ' disabled' : '') + '>삭제</button></div>';
   }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rlpn" maxlength="8" placeholder="이름 (최대 8자)" aria-label="이름" autocomplete="off"><button class="btn" data-act="rlpadd">추가</button></div>' +
     '<p class="mnote">최대 10명까지 넣을 수 있어요. 이 기기에만 저장돼요.</p><button class="btn sec" data-act="rldone" style="margin-top:8px">완료</button>');
 }
@@ -415,7 +445,10 @@ function vMe() {
   var card = function (icon, title, sub, inner) { return '<section class="mcard"><div class="mh"><span class="mi">' + ic(icon) + '</span><div class="mt"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</div></div>' + (inner || '') + '</section>'; };
   return '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('notes', 'bell', '알림') + '</div></div>' +
     '<main class="mepage"><section class="mcard prof">' + av(S.me.id, 72) + '<div class="pn"><b>' + esc(S.me.nickname) + '</b><small>' + esc(schoolName(S.me.school_id)) + ' · ' + esc(S.me.gender) + '</small></div></section>' +
-    card('pencil', '닉네임 바꾸기', '', '<div class="inline"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"' + (cool ? ' disabled' : '') + '><button class="btn" data-act="saveprofile"' + (cool ? ' disabled' : '') + '>저장</button></div>' +
+    card('pencil', '닉네임 바꾸기', S.nickEdit ? '' : esc(S.me.nickname), (S.nickEdit && !cool ?
+      '<div class="inline"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"></div>' +
+      '<div class="row" style="margin-top:10px"><button class="btn sec" data-act="nickcancel">취소</button><button class="btn" data-act="saveprofile">닉네임 저장</button></div>' :
+      '<button class="btn sec" data-act="nickedit"' + (cool ? ' disabled' : '') + '>닉네임 바꾸기</button>') +
       '<p class="mnote">' + (cool ? '<span class="warn">' + (next.getMonth() + 1) + '월 ' + next.getDate() + '일 ' + hm(next) + ' 이후에 바꿀 수 있어요.</span> ' : '') + '닉네임은 7일에 한 번만 바꿀 수 있어요. 학교와 성별은 바꿀 수 없어요.</p>') +
     card('ban', '차단한 사람', bl ? '' : '차단한 사람이 없어요.', bl) +
     notifyCard() +
@@ -427,10 +460,10 @@ function vMe() {
     '<p class="legal">밥친구는 학교가 운영하는 공식 서비스가 아니에요.</p></main>';
 }
 function notifyCard() {
-  var supported = 'Notification' in window, p = supported ? Notification.permission : 'unsupported', on = p === 'granted';
+  var supported = 'Notification' in window, p = supported ? Notification.permission : 'unsupported', on = p === 'granted' && !notifyOff();
   var sub = !supported ? '이 브라우저는 앱 밖 알림을 지원하지 않아요.' : on ? '켜져 있어요. 참여·채팅·친구 요청을 알려 줘요.' : p === 'denied' ? '<span class="warn">브라우저에서 막혀 있어요. 설정에서 허용해 주세요.</span>' : '브라우저 알림 켜기';
   return '<section class="mcard"><div class="mh"><span class="mi">' + ic('bell') + '</span><div class="mt"><b>알림</b><small>' + sub + '</small></div>' +
-    (supported && p !== 'denied' ? '<button class="sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="브라우저 알림" data-act="allownotify"' + (on ? ' disabled' : '') + '><i></i></button>' : '') + '</div></section>';
+    (supported && p !== 'denied' ? '<button class="sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="알림 켜기/끄기" data-act="allownotify"><i></i></button>' : '') + '</div></section>';
 }
 function legalLinks() {
   return '<p class="legal"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a> · <a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a> · <a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키 안내</a><br>밥친구는 학교가 운영하는 공식 서비스가 아니에요.</p>';
@@ -575,7 +608,7 @@ function paintPost() {
   var h = '<div class="dcard"><div class="ph">' + av(p.author_id, 48, true) + '<div class="nmb"><b>' + nm(p.author_id) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div>' +
     '<div class="chips"><button class="chip' + (st.liked ? ' on' : '') + '" data-act="plike" aria-pressed="' + st.liked + '" aria-label="좋아요 ' + st.likes + '개">' + ic('heart') + st.likes + '</button><span class="chip" aria-label="조회 ' + st.views + '회">' + ic('eye') + st.views + '</span></div></div>' +
     '<h2 class="dt">' + esc(p.title) + '</h2><div class="pd-body">' + esc(p.body) + '</div>' +
-    '<div class="jbox"><div class="jinfo"><div class="jn">' + ic('group') + '<b>참여 ' + n + '/' + p.capacity + '명</b>' + (p.closed ? '<span class="capc off">모집 마감</span>' : '') + '</div>' + tline + '</div>' + btn + '</div>' +
+    '<div class="jbox' + (p.closed ? ' closed' : '') + '"><div class="jinfo"><div class="jn">' + ic('group') + '<b>참여 ' + n + '/' + p.capacity + '명</b>' + (p.closed ? '<span class="capc off">모집 마감</span>' : '') + '</div>' + tline + '</div>' + btn + '</div>' +
     (mem ? '<div class="jav">' + mem.map(function (m) { return '<span class="jm">' + av(m.user_id, 34, true) + '<small>' + nm(m.user_id) + '</small></span>'; }).join('') + '</div>' : '') + '</div>';
   if (mine) h += '<div class="dcard row2"><span class="ico">' + ic('cal') + '</span><div class="rt"><b>' + (p.closed ? '모집 다시 열기' : '모집 마감하기') + '</b><small>' + (p.closed ? '다시 열면 다른 사람이 참여할 수 있어요.' : '모집을 마감하면 더 이상 참여할 수 없어요!') + '</small></div><button class="obtn" data-act="toggleclose">' + (p.closed ? '다시 열기' : '모집 마감하기') + '</button></div>';
   else if (joined) h += '<div class="dcard row2"><span class="ico">' + ic('group') + '</span><div class="rt"><b>참여 취소</b><small>취소하면 단체 채팅방에서 나가요.</small></div><button class="obtn" data-act="leave">참여 취소</button></div>';
@@ -729,6 +762,7 @@ var H = {
   close: function () { closeSheet(); },
   rlspin: function () { rlSpin(); },
   rlbet: function () { rlBet(); },
+  rldice: function () { rlDice(); },
   rledit: function () { rlEdit(); },
   rlpeople: function () { rlPeople(); },
   rldone: function () { closeSheet(); render(); },
@@ -826,8 +860,10 @@ var H = {
   saveprofile: async function () {
     await rpc('update_profile', { p_nickname: ($('#mn').value || '').trim() });
     S.me = ok(await S.sb.from('profiles').select(PROFILE_COLS).eq('id', S.me.id).maybeSingle()); S.names[S.me.id] = S.me;
-    S.posts = { meal: null, study: null }; render(); toast('저장했어요.'); loadPosts().catch(fail);
+    S.nickEdit = false; S.posts = { meal: null, study: null }; render(); toast('닉네임을 저장했어요.'); loadPosts().catch(fail);
   },
+  nickedit: function () { S.nickEdit = true; render(); setTimeout(function () { var m = $('#mn'); if (m) { m.focus(); m.select(); } }, 40); },
+  nickcancel: function () { S.nickEdit = false; render(); },
   notes: function () { openNotes(); },
   compose: function () { S.cap = 4; go({ t: 'compose' }); },
   capm: function () { setCap(S.cap - 1); },
@@ -929,8 +965,13 @@ var H = {
     await loadMsgs(); var m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight;
   },
   allownotify: async function () {
-    var r = await Notification.requestPermission(); render();
-    toast(r === 'granted' ? '알림을 켰어요.' : '알림이 허용되지 않았어요.', r !== 'granted');
+    if (Notification.permission === 'granted') {
+      var off = !notifyOff(); try { localStorage.setItem('hb_notify_off', off ? '1' : '0'); } catch (e) { /* 무시 */ }
+      render(); toast(off ? '알림을 껐어요.' : '알림을 켰어요.'); return;
+    }
+    var r = await Notification.requestPermission();
+    if (r === 'granted') { try { localStorage.setItem('hb_notify_off', '0'); } catch (e) { /* 무시 */ } }
+    render(); toast(r === 'granted' ? '알림을 켰어요.' : '알림이 허용되지 않았어요.', r !== 'granted');
   },
   cookieok: function () { try { localStorage.setItem('hb_notice', '1'); } catch (e) { /* 무시 */ } S.seenNotice = true; var n = $('#notice'); if (n) n.hidden = true; }
 };
