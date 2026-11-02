@@ -19,6 +19,7 @@ var ICON = {
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6', more: 'M12 6v.01M12 12v.01M12 18v.01',
   search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3', userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
   pencil: 'M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4', ban: 'M12 21a9 9 0 100-18 9 9 0 000 18zM6 6l12 12', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01', chev: 'M9 5l7 7-7 7', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', crown: 'M3 8l4 4 5-7 5 7 4-4-2 11H5L3 8z', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
+  wheel: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4',
   group: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.5 3.5 0 010 6.5M18 14.5c2.5.5 4 2.2 4 5.5'
 };
 function ic(n) { return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICON[n] + '"/></svg>'; }
@@ -29,7 +30,7 @@ function fail(e) { toast(msg(e), true); }
 var ERR = [
   ['Invalid login', '이메일이나 비밀번호가 맞지 않아요.'], ['EMAIL_TAKEN', '이미 가입된 이메일이에요. 로그인해 주세요.'], ['BAD_EMAIL', '이메일 주소를 확인해 주세요.'],
   ['BAD_PASSWORD', '비밀번호는 8자 이상이고 영문과 숫자를 모두 포함해야 해요.'], ['PW_MISMATCH', '비밀번호 확인이 서로 달라요.'], ['NEED_PASSWORD', '비밀번호를 입력해 주세요.'],
-  ['NICKNAME_TAKEN', '이미 사용 중인 닉네임이에요.'], ['NICKNAME_RESERVED', '사용할 수 없는 닉네임이에요. (운영·관리자 등은 쓸 수 없어요)'], ['NICKNAME_COOLDOWN', '닉네임은 7일에 한 번만 바꿀 수 있어요.'],
+  ['NICKNAME_TAKEN', '이미 사용 중인 닉네임이에요.'], ['BAD_CONTENT', '부적절한 표현이 들어 있어요. 다른 말로 써 주세요.'], ['NICKNAME_RESERVED', '사용할 수 없는 닉네임이에요. (운영·관리자 등은 쓸 수 없어요)'], ['NICKNAME_COOLDOWN', '닉네임은 7일에 한 번만 바꿀 수 있어요.'],
   ['BAD_NICKNAME', '닉네임은 2~10자, 한글·영문·숫자·_ 만 쓸 수 있어요.'], ['BAD_SCHOOL', '학교를 골라 주세요.'], ['BAD_GENDER', '남자/여자 중에 골라 주세요.'],
   ['TERMS_REQUIRED', '필수 항목에 모두 동의해야 시작할 수 있어요.'],
   ['BAD_TITLE', '제목은 1~40자로 써 주세요.'], ['BAD_BODY', '내용은 1~1000자로 써 주세요.'], ['BAD_COMMENT', '댓글은 1~200자로 써 주세요.'], ['BAD_MESSAGE', '메시지는 1~500자로 써 주세요.'],
@@ -259,10 +260,98 @@ function render() {
   paintList(); paintSearch(); paintRooms(); paintPost(); paintReplyBar(); paintMsgs(true); paintBell(); paintNav();
 }
 function nav() {
-  var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['search', 'search', '검색'], ['me', 'user', '내 정보']];
+  var t = [['board', 'board', '게시판'], ['chat', 'chat', '채팅'], ['wheel', 'wheel', '돌림판'], ['search', 'search', '검색'], ['me', 'user', '내 정보']];
   return '<nav class="nav" aria-label="메뉴">' + t.map(function (x) {
     return '<button data-act="tab" data-v="' + x[0] + '"' + (S.tab === x[0] ? ' aria-current="page"' : '') + '>' + ic(x[1]) + x[2] + (x[0] === 'chat' ? '<span class="bdg" id="nbdg" hidden></span>' : '') + '</button>';
   }).join('') + '</nav>';
+}
+
+/* ---------- 돌림판 탭: 점심 메뉴 돌림판 + 저녁 내기 (서버 없이 이 기기에서만 동작) ---------- */
+var RL_COLORS = ['#FF8A65', '#FFCA28', '#9CCC65', '#4DD0E1', '#7986CB', '#F06292', '#FFB74D', '#4DB6AC', '#BA68C8', '#A1887F', '#81C784', '#64B5F6'];
+var RL_DEF = [['🍜', '라면'], ['🍛', '카레'], ['🍣', '초밥'], ['🍕', '피자'], ['🍗', '치킨'], ['🥘', '찌개'], ['🍔', '버거'], ['🍝', '파스타']];
+function rlLoad() {
+  if (S.rl) return S.rl;
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem('hb_rl') || 'null'); } catch (e) { d = null; }
+  var ok = d && Array.isArray(d.menus) && d.menus.length >= 2 && Array.isArray(d.people);
+  S.rl = { menus: ok ? d.menus.slice(0, 12) : RL_DEF.slice(), people: ok ? d.people.slice(0, 10) : [S.me ? S.me.nickname : '나'], angle: 0, spinning: false, res: null, bet: null };
+  if (!S.rl.people.length) S.rl.people = [S.me ? S.me.nickname : '나'];
+  return S.rl;
+}
+function rlSave() { try { localStorage.setItem('hb_rl', JSON.stringify({ menus: S.rl.menus, people: S.rl.people })); } catch (e) { /* 저장 못 해도 괜찮아요 */ } }
+function rlRand(n) { try { var a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; } catch (e) { return Math.floor(Math.random() * n); } }
+function rlWheel(r) {
+  var n = r.menus.length, a = 360 / n, R = 100, out = '';
+  for (var i = 0; i < n; i++) {
+    var a0 = (i * a - 90) * Math.PI / 180, a1 = ((i + 1) * a - 90) * Math.PI / 180, mid = (i * a + a / 2);
+    var p = n === 1 ? '' : 'M0 0L' + (R * Math.cos(a0)).toFixed(2) + ' ' + (R * Math.sin(a0)).toFixed(2) + 'A' + R + ' ' + R + ' 0 ' + (a > 180 ? 1 : 0) + ' 1 ' + (R * Math.cos(a1)).toFixed(2) + ' ' + (R * Math.sin(a1)).toFixed(2) + 'Z';
+    out += '<path d="' + p + '" fill="' + RL_COLORS[i % RL_COLORS.length] + '" stroke="#fff" stroke-width="1.5"/>' +
+      '<g transform="rotate(' + mid + ') translate(0 -66)"><text text-anchor="middle" font-size="' + (n > 8 ? 17 : 21) + '" y="2">' + esc(r.menus[i][0]) + '</text>' +
+      '<text text-anchor="middle" font-size="' + (n > 8 ? 7 : 8.5) + '" y="' + (n > 8 ? 13 : 15) + '" fill="#3a2a20" font-weight="700">' + esc(r.menus[i][1]) + '</text></g>';
+  }
+  return '<div class="rlw"><div class="rlpin" aria-hidden="true"></div><svg viewBox="0 0 208 208" class="rlsvg" role="img" aria-label="메뉴 돌림판"><g id="wheel" style="transform:rotate(' + r.angle + 'deg)"><g transform="translate(104 104)">' + out + '</g></g><circle cx="104" cy="104" r="11" fill="#fff" stroke="#e5e5e5"/></svg></div>';
+}
+function vWheel() {
+  var r = rlLoad();
+  var ppl = r.people.map(function (n, i) {
+    return '<div class="rlp' + (r.bet === i ? ' lose' : '') + '" data-i="' + i + '"><span class="avatar anon" style="width:44px;height:44px"></span><small>' + esc(n) + '</small></div>';
+  }).join('');
+  return '<div class="top"><h1>함께 정하기</h1></div><main class="rlpage">' +
+    '<section class="mcard"><div class="mh"><span class="mi">' + ic('wheel') + '</span><div class="mt"><b>점심 추천 돌림판</b><small>뭐 먹을지 모르겠다면 돌려 보세요</small></div></div>' +
+    '<div id="rlbox">' + rlWheel(r) + '</div><p class="rlres" id="rlres" aria-live="polite">' + rlResHtml(r) + '</p>' +
+    '<div class="row"><button class="btn" data-act="rlspin"' + (r.spinning ? ' disabled' : '') + '>돌리기</button><button class="btn sec" data-act="rledit">메뉴 수정</button></div></section>' +
+    '<section class="mcard"><div class="mh"><span class="mi">' + ic('group') + '</span><div class="mt"><b>저녁 내기</b><small>걸린 사람이 쏘기! 🍻</small></div></div>' +
+    '<div class="rlppl" id="rlppl">' + ppl + '<button class="rladd" data-act="rlpeople" aria-label="참여자 추가">+</button></div>' +
+    '<p class="rlres" id="rlbet" aria-live="polite">' + (r.bet != null ? '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 쏩니다!' : '') + '</p>' +
+    '<div class="row"><button class="btn sec" data-act="rlpeople">참여자 추가</button><button class="btn" data-act="rlbet">내기 시작</button></div></section></main>';
+}
+function rlResHtml(r) {
+  return r.res == null ? '' : '🎉 오늘은 <b>' + esc(r.menus[r.res][0] + ' ' + r.menus[r.res][1]) + '</b>!<br><button class="btn sm sec" data-act="rlpost">이 메뉴로 같이 먹을 사람 구하기</button>';
+}
+function rlSpin() {
+  var r = rlLoad(); if (r.spinning) return;
+  var n = r.menus.length, i = rlRand(n), a = 360 / n, w = $('#wheel'); if (!w) return;
+  var cur = ((r.angle % 360) + 360) % 360, want = (360 - (i * a + a / 2)) % 360, delta = ((want - cur) + 360) % 360;
+  r.angle += 360 * 5 + delta; r.spinning = true; r.res = null;
+  var res = $('#rlres'); if (res) res.innerHTML = '';
+  w.style.transition = 'transform 4s cubic-bezier(.17,.67,.2,1)'; void w.getBoundingClientRect(); w.style.transform = 'rotate(' + r.angle + 'deg)';
+  var sb = $('[data-act="rlspin"]'); if (sb) sb.disabled = true;
+  setTimeout(function () {
+    r.spinning = false; r.res = i;
+    var rs = $('#rlres'); if (rs) rs.innerHTML = rlResHtml(r);
+    var b = $('[data-act="rlspin"]'); if (b) b.disabled = false;
+  }, 4100);
+}
+function rlBet() {
+  var r = rlLoad(); if (r.spinning) return;
+  if (r.people.length < 2) { toast('참여자를 2명 이상 넣어 주세요.', true); return; }
+  var final = rlRand(r.people.length), steps = 20 + rlRand(r.people.length), k = 0, total = steps * r.people.length + ((final - (steps * r.people.length) % r.people.length) + r.people.length) % r.people.length;
+  r.spinning = true; r.bet = null; var bt = $('#rlbet'); if (bt) bt.textContent = '두근두근…';
+  (function tick() {
+    var els = document.querySelectorAll('.rlp');
+    for (var j = 0; j < els.length; j++) els[j].classList.toggle('hi', j === k % r.people.length);
+    if (k >= total) {
+      r.spinning = false; r.bet = k % r.people.length;
+      for (var j2 = 0; j2 < els.length; j2++) { els[j2].classList.remove('hi'); els[j2].classList.toggle('lose', j2 === r.bet); }
+      var b2 = $('#rlbet'); if (b2) b2.innerHTML = '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 쏩니다!';
+      return;
+    }
+    k++; setTimeout(tick, 70 + Math.floor(k * k / 6));
+  })();
+}
+function rlEdit() {
+  var r = rlLoad();
+  openSheet('<h3>메뉴 수정</h3><div id="rle">' + r.menus.map(function (m, i) {
+    return '<div class="fl"><span style="font-size:22px">' + esc(m[0]) + '</span><div class="tx">' + esc(m[1]) + '</div><button class="btn sm sec" data-act="rldel" data-i="' + i + '"' + (r.menus.length <= 2 ? ' disabled' : '') + '>삭제</button></div>';
+  }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rle1" maxlength="2" value="🍽️" style="max-width:64px;text-align:center" aria-label="이모지"><input type="text" id="rle2" maxlength="8" placeholder="메뉴 이름" aria-label="메뉴 이름" autocomplete="off"><button class="btn" data-act="rladd">추가</button></div>' +
+    '<p class="mnote">메뉴는 2개 이상 12개 이하로 둘 수 있어요. 이 기기에만 저장돼요.</p><button class="btn sec" data-act="rldone" style="margin-top:8px">완료</button>');
+}
+function rlPeople() {
+  var r = rlLoad();
+  openSheet('<h3>참여자 추가</h3><div id="rlpe">' + r.people.map(function (n, i) {
+    return '<div class="fl"><span class="avatar anon" style="width:34px;height:34px"></span><div class="tx">' + esc(n) + '</div><button class="btn sm sec" data-act="rlpdel" data-i="' + i + '"' + (r.people.length <= 1 ? ' disabled' : '') + '>삭제</button></div>';
+  }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rlpn" maxlength="8" placeholder="이름 (최대 8자)" aria-label="이름" autocomplete="off"><button class="btn" data-act="rlpadd">추가</button></div>' +
+    '<p class="mnote">최대 10명까지 넣을 수 있어요. 이 기기에만 저장돼요.</p><button class="btn sec" data-act="rldone" style="margin-top:8px">완료</button>');
 }
 function vMain() {
   var body;
@@ -273,6 +362,8 @@ function vMain() {
       }).join('') + '</div><main id="list"></main><button class="fab" data-act="compose" aria-label="글쓰기">' + ic('plus') + '</button>';
   } else if (S.tab === 'chat') {
     body = '<div class="top"><h1>채팅</h1></div><main id="rooms"></main>';
+  } else if (S.tab === 'wheel') {
+    body = vWheel();
   } else if (S.tab === 'search') {
     body = vSearch();
   } else body = vMe();
@@ -329,10 +420,11 @@ function vMe() {
     card('ban', '차단한 사람', bl ? '' : '차단한 사람이 없어요.', bl) +
     notifyCard() +
     '<section class="mcard"><div class="mh"><span class="mi fill">' + ic('info') + '</span><div class="mt"><b>안내</b></div></div><div class="links">' +
-      [['terms', '이용약관'], ['privacy', '개인정보처리방침'], ['cookies', '쿠키·저장소 안내'], ['contact', '운영자 정보 · 문의']].map(function (l) { return '<a href="' + LEGAL + '#' + l[0] + '" target="_blank" rel="noopener">' + l[1] + chev + '</a>'; }).join('') + '</div></section>' +
+      [['terms', '이용약관'], ['rules', '커뮤니티 이용 규칙'], ['privacy', '개인정보처리방침'], ['cookies', '쿠키·저장소 안내'], ['delete', '계정 삭제 안내'], ['contact', '운영자 정보 · 문의']].map(function (l) { return '<a href="' + LEGAL + '#' + l[0] + '" target="_blank" rel="noopener">' + l[1] + chev + '</a>'; }).join('') + '</div></section>' +
     '<section class="mcard"><div class="row">' + (S.me.is_admin ? '<a class="btn sec" href="admin.html">운영자 화면</a>' : '') +
     '<button class="btn sec" data-act="logout">로그아웃</button><button class="btn dg" data-act="delacct">계정 삭제</button></div>' +
-    '<p class="mnote">계정을 삭제하면 프로필, 글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.</p></section></main>';
+    '<p class="mnote">계정을 삭제하면 프로필, 글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.</p></section>' +
+    '<p class="legal">밥친구는 학교가 운영하는 공식 서비스가 아니에요.</p></main>';
 }
 function notifyCard() {
   var supported = 'Notification' in window, p = supported ? Notification.permission : 'unsupported', on = p === 'granted';
@@ -341,7 +433,7 @@ function notifyCard() {
     (supported && p !== 'denied' ? '<button class="sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="브라우저 알림" data-act="allownotify"' + (on ? ' disabled' : '') + '><i></i></button>' : '') + '</div></section>';
 }
 function legalLinks() {
-  return '<p class="legal"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a> · <a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a> · <a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키 안내</a></p>';
+  return '<p class="legal"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a> · <a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a> · <a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키 안내</a><br>밥친구는 학교가 운영하는 공식 서비스가 아니에요.</p>';
 }
 function vVerify() {
   return '<div class="auth"><div><div class="logo">메일 확인</div><p><b>' + esc(S.verify.email) + '</b> 로 인증번호를 보냈어요.<br>메일에 적힌 숫자를 입력해 주세요. 메일이 안 보이면 스팸함도 확인해 주세요.</p></div>' +
@@ -385,14 +477,14 @@ function vCompose() {
     '<div class="cap-row"><span>모집 인원 <small>(나 포함)</small></span><div class="step"><button data-act="capm" aria-label="인원 줄이기">−</button><b id="capv" aria-live="polite">' + S.cap + '명</b><button data-act="capp" aria-label="인원 늘리기">+</button></div></div>' +
     '<div class="tm"><label class="rd2"><input type="checkbox" id="ctm"> 모이는 시간 정하기 (선택)</label><div class="tmf" id="tmf" hidden>' +
     '<input type="date" id="cd" aria-label="날짜"><input type="time" id="cs" aria-label="시작 시간"><span aria-hidden="true">~</span><input type="time" id="ce" aria-label="종료 시간 (선택)"></div></div>' +
-    '<div class="hint">같은 학교로 등록한 사람들에게만 보여요. 참여한 사람들끼리 단체 채팅을 할 수 있어요.</div></div></div>';
+    '<div class="hint">같은 학교로 등록한 사람들에게만 보여요. 참여한 사람들끼리 단체 채팅을 할 수 있어요.<br>처음 만나는 사람과는 사람 많은 공개된 장소에서 만나고, 연락처·주소 같은 개인정보는 함부로 알려 주지 마세요.</div></div></div>';
 }
 function vRoom() {
   var v = S.view, head;
   if (v.k === 'dm') head = '<button class="who" data-act="user" data-u="' + esc(v.other) + '">' + av(v.other, 34) + '<b>' + nm(v.other) + '</b></button>';
   else head = '<button class="who" data-act="members">' + gav(v.post, v.title, 34) + '<span class="wt"><b>' + esc(v.title) + '</b><small id="mcount"></small></span></button>';
   return '<div class="page"><div class="bar">' + ib('back', 'back', '뒤로') + head + '</div>' +
-    '<div class="chat"><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><input type="text" id="mi" maxlength="500" placeholder="메시지 입력" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
+    '<div class="chat"><p class="safe">처음 만나는 사람과는 공개된 장소에서 만나고, 개인정보는 알려 주지 마세요. 불편하면 메시지를 눌러 신고할 수 있어요.</p><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><input type="text" id="mi" maxlength="500" placeholder="메시지 입력" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
 }
 
 /* 부분 갱신 (입력 중인 칸을 건드리지 않아요) */
@@ -635,6 +727,33 @@ async function openGroup(post, title) {
 function setCap(n) { S.cap = Math.max(2, Math.min(10, n)); var c = $('#capv'); if (c) c.textContent = S.cap + '명'; }
 var H = {
   close: function () { closeSheet(); },
+  rlspin: function () { rlSpin(); },
+  rlbet: function () { rlBet(); },
+  rledit: function () { rlEdit(); },
+  rlpeople: function () { rlPeople(); },
+  rldone: function () { closeSheet(); render(); },
+  rldel: function (el) { var r = rlLoad(); if (r.menus.length > 2) { r.menus.splice(+el.dataset.i, 1); r.res = null; rlSave(); rlEdit(); } },
+  rladd: function () {
+    var r = rlLoad(), e = ($('#rle1').value || '').trim() || '🍽️', n = ($('#rle2').value || '').trim();
+    if (!n) { toast('메뉴 이름을 적어 주세요.', true); return; }
+    if (r.menus.length >= 12) { toast('메뉴는 12개까지예요.', true); return; }
+    if (r.menus.some(function (m) { return m[1] === n; })) { toast('이미 있는 메뉴예요.', true); return; }
+    r.menus.push([e, n]); r.res = null; rlSave(); rlEdit();
+  },
+  rlpdel: function (el) { var r = rlLoad(); if (r.people.length > 1) { r.people.splice(+el.dataset.i, 1); r.bet = null; rlSave(); rlPeople(); } },
+  rlpadd: function () {
+    var r = rlLoad(), n = ($('#rlpn').value || '').trim();
+    if (!n) { toast('이름을 적어 주세요.', true); return; }
+    if (r.people.length >= 10) { toast('최대 10명까지예요.', true); return; }
+    if (r.people.indexOf(n) >= 0) { toast('같은 이름이 이미 있어요.', true); return; }
+    r.people.push(n); r.bet = null; rlSave(); rlPeople();
+  },
+  rlpost: function () {
+    var r = rlLoad(); if (r.res == null) return; var m = r.menus[r.res];
+    S.kind = 'meal'; S.cap = 4; go({ t: 'compose' });
+    setTimeout(function () { var t = $('#ct'); if (t) t.value = (m[0] + ' ' + m[1] + ' 같이 먹어요').slice(0, 40); }, 30);
+  },
+
   back: function () { back(); },
   mode: function (el) { S.email = ($('#em') || {}).value || ''; S.authMode = el.dataset.v; render(); },
   tab: function (el) { S.tab = el.dataset.v; render(); if (S.tab === 'search') setTimeout(function () { var q = $('#sq'); if (q) q.focus(); }, 60); if (S.tab === 'board' && !S.posts[S.kind]) loadPosts().catch(fail); if (S.tab === 'chat') loadRooms().catch(fail); },
