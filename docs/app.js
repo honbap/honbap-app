@@ -18,7 +18,7 @@ var ICON = {
   send: 'M4 12l16-8-6 16-3-7-7-1z', chat: 'M4 5h16v11H9l-5 4z', board: 'M5 4h14v16H5zM9 9h6M9 13h6',
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6', more: 'M12 6v.01M12 12v.01M12 18v.01',
   userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
-  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
+  pencil: 'M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4', ban: 'M12 21a9 9 0 100-18 9 9 0 000 18zM6 6l12 12', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01', chev: 'M9 5l7 7-7 7', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
   group: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.5 3.5 0 010 6.5M18 14.5c2.5.5 4 2.2 4 5.5'
 };
 function ic(n) { return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICON[n] + '"/></svg>'; }
@@ -276,24 +276,27 @@ function vMain() {
   return body + nav();
 }
 function vMe() {
-  var bl = S.blocks.map(function (id) { return '<div class="fl">' + av(id, 34) + '<div class="tx">' + esc(nick(id)) + '</div><button class="btn sm sec" data-act="unblock" data-u="' + esc(id) + '">해제</button></div>'; }).join('') || '<p class="sub">차단한 사람이 없어요.</p>';
+  var bl = S.blocks.map(function (id) { return '<div class="fl">' + av(id, 34) + '<div class="tx">' + esc(nick(id)) + '</div><button class="btn sm sec" data-act="unblock" data-u="' + esc(id) + '">해제</button></div>'; }).join('');
   var next = S.me.nickname_changed_at ? new Date(new Date(S.me.nickname_changed_at).getTime() + 7 * 864e5) : null, cool = next && next > new Date();
-  return '<div class="top"><h1>내 정보</h1></div><main><div class="pad">' +
-    '<div class="who-card">' + av(S.me.id, 56) + '<div><b>' + esc(S.me.nickname) + '</b><p class="sub">' + esc(schoolName(S.me.school_id)) + ' · ' + esc(S.me.gender) + '</p></div></div>' +
-    '<h2>닉네임 바꾸기</h2><div class="stack"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"' + (cool ? ' disabled' : '') + '><button class="btn" data-act="saveprofile"' + (cool ? ' disabled' : '') + '>저장</button></div>' +
-    '<p class="sub" style="margin-top:8px">' + (cool ? '<span class="warn">닉네임은 ' + (next.getMonth() + 1) + '월 ' + next.getDate() + '일 ' + hm(next) + ' 이후에 바꿀 수 있어요.</span> ' : '') + '닉네임은 7일에 한 번만 바꿀 수 있어요. 학교와 성별은 처음 정한 뒤로는 바꿀 수 없어요.</p>' +
-    '<h2>차단한 사람</h2>' + bl +
-    '<h2>알림</h2>' + notifyRow() + '<h2>안내</h2><div class="links"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a><a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a><a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키·저장소 안내</a><a href="' + LEGAL + '#contact" target="_blank" rel="noopener">운영자 정보 · 문의</a></div>' +
-    '<h2>계정</h2><div class="row">' + (S.me.is_admin ? '<a class="btn sec" href="admin.html">운영자 화면</a>' : '') +
+  var chev = ic('chev');
+  var card = function (icon, title, sub, inner) { return '<section class="mcard"><div class="mh"><span class="mi">' + ic(icon) + '</span><div class="mt"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</div></div>' + (inner || '') + '</section>'; };
+  return '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('notes', 'bell', '알림') + '</div></div>' +
+    '<main class="mepage"><section class="mcard prof">' + av(S.me.id, 72) + '<div class="pn"><b>' + esc(S.me.nickname) + '</b><small>' + esc(schoolName(S.me.school_id)) + ' · ' + esc(S.me.gender) + '</small></div></section>' +
+    card('pencil', '닉네임 바꾸기', '', '<div class="inline"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"' + (cool ? ' disabled' : '') + '><button class="btn" data-act="saveprofile"' + (cool ? ' disabled' : '') + '>저장</button></div>' +
+      '<p class="mnote">' + (cool ? '<span class="warn">' + (next.getMonth() + 1) + '월 ' + next.getDate() + '일 ' + hm(next) + ' 이후에 바꿀 수 있어요.</span> ' : '') + '닉네임은 7일에 한 번만 바꿀 수 있어요. 학교와 성별은 바꿀 수 없어요.</p>') +
+    card('ban', '차단한 사람', bl ? '' : '차단한 사람이 없어요.', bl) +
+    notifyCard() +
+    '<section class="mcard"><div class="mh"><span class="mi fill">' + ic('info') + '</span><div class="mt"><b>안내</b></div></div><div class="links">' +
+      [['terms', '이용약관'], ['privacy', '개인정보처리방침'], ['cookies', '쿠키·저장소 안내'], ['contact', '운영자 정보 · 문의']].map(function (l) { return '<a href="' + LEGAL + '#' + l[0] + '" target="_blank" rel="noopener">' + l[1] + chev + '</a>'; }).join('') + '</div></section>' +
+    '<section class="mcard"><div class="row">' + (S.me.is_admin ? '<a class="btn sec" href="admin.html">운영자 화면</a>' : '') +
     '<button class="btn sec" data-act="logout">로그아웃</button><button class="btn dg" data-act="delacct">계정 삭제</button></div>' +
-    '<p class="sub" style="margin-top:8px">계정을 삭제하면 프로필, 글, 댓글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.</p></div></main>';
+    '<p class="mnote">계정을 삭제하면 프로필, 글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.</p></section></main>';
 }
-function notifyRow() {
-  if (!('Notification' in window)) return '<p class="sub">이 브라우저는 앱 밖 알림을 지원하지 않아요. 앱을 열어 둔 동안에는 화면 위 알림이 떠요.</p>';
-  var p = Notification.permission;
-  if (p === 'granted') return '<p class="sub">알림이 켜져 있어요. 참여·채팅·친구 요청이 오면 알려 줘요.</p>';
-  if (p === 'denied') return '<p class="sub"><span class="warn">브라우저에서 알림이 막혀 있어요.</span> 주소창 왼쪽 자물쇠 → 알림을 허용으로 바꿔 주세요.</p>';
-  return '<button class="btn sec" data-act="allownotify">브라우저 알림 켜기</button><p class="sub" style="margin-top:8px">누가 참여하거나 채팅이 오면 다른 화면을 보고 있어도 알려 줘요.</p>';
+function notifyCard() {
+  var supported = 'Notification' in window, p = supported ? Notification.permission : 'unsupported', on = p === 'granted';
+  var sub = !supported ? '이 브라우저는 앱 밖 알림을 지원하지 않아요.' : on ? '켜져 있어요. 참여·채팅·친구 요청을 알려 줘요.' : p === 'denied' ? '<span class="warn">브라우저에서 막혀 있어요. 설정에서 허용해 주세요.</span>' : '브라우저 알림 켜기';
+  return '<section class="mcard"><div class="mh"><span class="mi">' + ic('bell') + '</span><div class="mt"><b>알림</b><small>' + sub + '</small></div>' +
+    (supported && p !== 'denied' ? '<button class="sw' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="브라우저 알림" data-act="allownotify"' + (on ? ' disabled' : '') + '><i></i></button>' : '') + '</div></section>';
 }
 function legalLinks() {
   return '<p class="legal"><a href="' + LEGAL + '#terms" target="_blank" rel="noopener">이용약관</a> · <a href="' + LEGAL + '#privacy" target="_blank" rel="noopener">개인정보처리방침</a> · <a href="' + LEGAL + '#cookies" target="_blank" rel="noopener">쿠키 안내</a></p>';
