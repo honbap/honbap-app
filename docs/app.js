@@ -18,7 +18,7 @@ var ICON = {
   send: 'M4 12l16-8-6 16-3-7-7-1z', chat: 'M4 5h16v11H9l-5 4z', board: 'M5 4h14v16H5zM9 9h6M9 13h6',
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6', more: 'M12 6v.01M12 12v.01M12 18v.01',
   search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3', userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
-  pencil: 'M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4', ban: 'M12 21a9 9 0 100-18 9 9 0 000 18zM6 6l12 12', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01', chev: 'M9 5l7 7-7 7', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
+  pencil: 'M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4', ban: 'M12 21a9 9 0 100-18 9 9 0 000 18zM6 6l12 12', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01', chev: 'M9 5l7 7-7 7', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', crown: 'M3 8l4 4 5-7 5 7 4-4-2 11H5L3 8z', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
   group: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.5 3.5 0 010 6.5M18 14.5c2.5.5 4 2.2 4 5.5'
 };
 function ic(n) { return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICON[n] + '"/></svg>'; }
@@ -75,6 +75,7 @@ function tbox(p, small) {
   return '<span class="tbox' + (small ? ' sm' : '') + '">' + ic('clock') + '<span class="tl"><span class="td">' + (a.getMonth() + 1) + '월 ' + a.getDate() + '일 (' + DOW[a.getDay()] + ')</span><span class="tt">' + t(a) + (b ? ' ~ ' + t(b) : ' 시작') + '</span></span></span>';
 }
 function nick(id) { var u = S.names[id]; return u ? u.nickname : '알 수 없음'; }
+function nm(id) { var u = S.names[id]; return esc(nick(id)) + (u && u.is_admin ? ' <span class="crown" title="운영자">' + ic('crown') + '</span>' : ''); }
 function gl(id) { var u = S.names[id]; return u && u.gender === '남성' ? '남' : u && u.gender === '여성' ? '여' : ''; }
 function hue(id) { var h = 0, s = String(id || ''); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
 function av(id, size, act) {
@@ -97,7 +98,7 @@ var LEGAL = 'legal.html';
 async function loadNames(ids) {
   ids = ids.filter(function (x, i, a) { return x && a.indexOf(x) === i && !S.names[x]; });
   if (!ids.length) return;
-  (ok(await S.sb.from('profiles').select('id,nickname,gender').in('id', ids)) || []).forEach(function (p) { S.names[p.id] = p; });
+  (ok(await S.sb.from('profiles').select('id,nickname,gender,is_admin').in('id', ids)) || []).forEach(function (p) { S.names[p.id] = p; });
 }
 async function loadSchools() {
   if (S.schools.length) return;
@@ -317,7 +318,7 @@ async function runSearch() {
   if (($('#sq') || {}).value && S.sq === q) { S.psr = rows; paintSearch(); }
 }
 function vMe() {
-  var bl = S.blocks.map(function (id) { return '<div class="fl">' + av(id, 34) + '<div class="tx">' + esc(nick(id)) + '</div><button class="btn sm sec" data-act="unblock" data-u="' + esc(id) + '">해제</button></div>'; }).join('');
+  var bl = S.blocks.map(function (id) { return '<div class="fl">' + av(id, 34) + '<div class="tx">' + nm(id) + '</div><button class="btn sm sec" data-act="unblock" data-u="' + esc(id) + '">해제</button></div>'; }).join('');
   var next = S.me.nickname_changed_at ? new Date(new Date(S.me.nickname_changed_at).getTime() + 7 * 864e5) : null, cool = next && next > new Date();
   var chev = ic('chev');
   var card = function (icon, title, sub, inner) { return '<section class="mcard"><div class="mh"><span class="mi">' + ic(icon) + '</span><div class="mt"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</div></div>' + (inner || '') + '</section>'; };
@@ -388,7 +389,7 @@ function vCompose() {
 }
 function vRoom() {
   var v = S.view, head;
-  if (v.k === 'dm') head = '<button class="who" data-act="user" data-u="' + esc(v.other) + '">' + av(v.other, 34) + '<b>' + esc(nick(v.other)) + '</b></button>';
+  if (v.k === 'dm') head = '<button class="who" data-act="user" data-u="' + esc(v.other) + '">' + av(v.other, 34) + '<b>' + nm(v.other) + '</b></button>';
   else head = '<button class="who" data-act="members">' + gav(v.post, v.title, 34) + '<span class="wt"><b>' + esc(v.title) + '</b><small id="mcount"></small></span></button>';
   return '<div class="page"><div class="bar">' + ib('back', 'back', '뒤로') + head + '</div>' +
     '<div class="chat"><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><input type="text" id="mi" maxlength="500" placeholder="메시지 입력" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
@@ -404,7 +405,7 @@ function postCard(p, hl) {
     var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100)), mine = S.myPosts[p.id], full = (p.member_count || 0) >= p.capacity;
     var btn = mine ? '<button class="jbtn go" data-act="gochat" data-id="' + p.id + '" data-title="' + esc(p.title) + '">채팅 열기 ›</button>' :
       (p.closed || full ? '<button class="jbtn" disabled>' + (p.closed ? '마감' : '정원 마감') + '</button>' : '<button class="jbtn" data-act="quickjoin" data-id="' + p.id + '">참여하기 ›</button>');
-    return '<div class="post" role="button" tabindex="0" data-act="post" data-id="' + p.id + '"><div class="ph2">' + av(p.author_id, 34) + '<span class="who2"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</div>' +
+    return '<div class="post" role="button" tabindex="0" data-act="post" data-id="' + p.id + '"><div class="ph2">' + av(p.author_id, 34) + '<span class="who2"><b>' + nm(p.author_id) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</div>' +
       '<div class="pt">' + (hl ? hlText(p.title, hl) : esc(p.title)) + '</div><div class="pp">' + (hl ? hlText(p.body, hl) : esc(p.body)) + '</div>' +
       '<div class="pfoot">' + (p.starts_at ? tbox(p, false) : '<span class="notm">모이는 시간 미정</span>') + btn + '</div><div class="pbar" aria-hidden="true"><i style="width:' + pct + '%"></i></div></div>';
 }
@@ -422,7 +423,7 @@ function paintRooms() {
   var h = '<div class="seg segm" role="group" aria-label="채팅 종류"><button data-act="chatseg" data-v="dm" aria-pressed="' + (S.chatSeg === 'dm') + '">친구' + badge(unreadOf('dm') + S.fr.incoming.length) + '</button>' +
     '<button data-act="chatseg" data-v="group" aria-pressed="' + (S.chatSeg === 'group') + '">내 모임' + badge(unreadOf('group')) + '</button></div>';
   if (S.chatSeg === 'dm') h += S.fr.incoming.map(function (f) {
-    return '<div class="req"><div class="fl">' + av(f.requester_id, 40) + '<div class="tx">' + esc(nick(f.requester_id)) + '<small>친구 요청이 왔어요</small></div>' +
+    return '<div class="req"><div class="fl">' + av(f.requester_id, 40) + '<div class="tx">' + nm(f.requester_id) + '<small>친구 요청이 왔어요</small></div>' +
       '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button><button class="btn sm sec" data-act="respond" data-id="' + f.id + '" data-v="0">거절</button></div></div>';
   }).join('');
   if (S.rooms === null) h += '<div class="empty">불러오는 중…</div>';
@@ -430,12 +431,12 @@ function paintRooms() {
   else h += rooms.map(function (r) {
     var cnt = r.unread ? '<span class="bdg acc">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '';
     if (r.kind === 'group') {
-      var last = r.last_body ? (r.last_sender ? esc(nick(r.last_sender)) + ': ' : '') + esc(r.last_body) : '모임 채팅을 시작해 보세요';
+      var last = r.last_body ? (r.last_sender ? nm(r.last_sender) + ': ' : '') + esc(r.last_body) : '모임 채팅을 시작해 보세요';
       return '<button class="li" data-act="group" data-post="' + r.post_id + '" data-title="' + esc(r.title) + '">' + gav(r.post_id, r.title, 46) +
         '<div class="tx"><div class="t1"><b>' + esc(r.title) + ' <small class="mc">' + r.member_count + '명</small></b><time>' + (r.last_at ? ago(r.last_at) : '') + '</time></div><div class="t2"><span>' + last + '</span>' + cnt + '</div></div></button>';
     }
     return '<button class="li" data-act="room" data-dm="' + r.dm_id + '" data-u="' + esc(r.other_user) + '">' + av(r.other_user, 46) +
-      '<div class="tx"><div class="t1"><b>' + esc(nick(r.other_user)) + '</b><time>' + (r.last_at ? ago(r.last_at) : '') + '</time></div>' +
+      '<div class="tx"><div class="t1"><b>' + nm(r.other_user) + '</b><time>' + (r.last_at ? ago(r.last_at) : '') + '</time></div>' +
       '<div class="t2"><span>' + esc(r.last_body || '대화를 시작해 보세요') + '</span>' + cnt + '</div></div></button>';
   }).join('');
   el.innerHTML = h;
@@ -452,7 +453,7 @@ function paintBell() {
 function cmHtml(c, reply) {
   var mine = c.author_id === S.me.id, n = 0, on = false;
   S.likes.forEach(function (l) { if (l.comment_id === c.id) { n++; if (l.user_id === S.me.id) on = true; } });
-  return '<div class="cm' + (reply ? ' re' : '') + '">' + av(c.author_id, reply ? 28 : 32, true) + '<div class="tx"><b>' + esc(nick(c.author_id)) + (gl(c.author_id) ? ' · ' + gl(c.author_id) : '') + '</b><div class="bd">' + esc(c.body) + '</div>' +
+  return '<div class="cm' + (reply ? ' re' : '') + '">' + av(c.author_id, reply ? 28 : 32, true) + '<div class="tx"><b>' + nm(c.author_id) + (gl(c.author_id) ? ' · ' + gl(c.author_id) : '') + '</b><div class="bd">' + esc(c.body) + '</div>' +
     '<div class="ft"><small>' + ago(c.created_at) + '</small>' +
     '<button class="lk' + (on ? ' on' : '') + '" data-act="like" data-id="' + c.id + '" aria-pressed="' + on + '" aria-label="좋아요 ' + n + '개">' + ic('heart') + (n || '') + '</button>' +
     (reply ? '' : '<button class="linkbtn" data-act="reply" data-id="' + c.id + '">답글</button>') +
@@ -479,11 +480,11 @@ function paintPost() {
   var btn = joined ? '<button class="jbtn big" data-act="gopost">' + ic('chat') + ' 단체 채팅 열기 ›</button>' :
     (p.closed || full ? '<button class="jbtn big" disabled>' + (p.closed ? '모집 마감' : '정원 마감') + '</button>' : '<button class="jbtn big" data-act="join">참여하기 ›</button>');
   var tline = p.starts_at ? '<div class="jt">' + ic('clock') + '<span>' + tText(p) + '</span></div>' : '';
-  var h = '<div class="dcard"><div class="ph">' + av(p.author_id, 48, true) + '<div class="nmb"><b>' + esc(nick(p.author_id)) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div>' +
+  var h = '<div class="dcard"><div class="ph">' + av(p.author_id, 48, true) + '<div class="nmb"><b>' + nm(p.author_id) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div>' +
     '<div class="chips"><button class="chip' + (st.liked ? ' on' : '') + '" data-act="plike" aria-pressed="' + st.liked + '" aria-label="좋아요 ' + st.likes + '개">' + ic('heart') + st.likes + '</button><span class="chip" aria-label="조회 ' + st.views + '회">' + ic('eye') + st.views + '</span></div></div>' +
     '<h2 class="dt">' + esc(p.title) + '</h2><div class="pd-body">' + esc(p.body) + '</div>' +
     '<div class="jbox"><div class="jinfo"><div class="jn">' + ic('group') + '<b>참여 ' + n + '/' + p.capacity + '명</b>' + (p.closed ? '<span class="capc off">모집 마감</span>' : '') + '</div>' + tline + '</div>' + btn + '</div>' +
-    (mem ? '<div class="jav">' + mem.map(function (m) { return '<span class="jm">' + av(m.user_id, 34, true) + '<small>' + esc(nick(m.user_id)) + '</small></span>'; }).join('') + '</div>' : '') + '</div>';
+    (mem ? '<div class="jav">' + mem.map(function (m) { return '<span class="jm">' + av(m.user_id, 34, true) + '<small>' + nm(m.user_id) + '</small></span>'; }).join('') + '</div>' : '') + '</div>';
   if (mine) h += '<div class="dcard row2"><span class="ico">' + ic('cal') + '</span><div class="rt"><b>' + (p.closed ? '모집 다시 열기' : '모집 마감하기') + '</b><small>' + (p.closed ? '다시 열면 다른 사람이 참여할 수 있어요.' : '모집을 마감하면 더 이상 참여할 수 없어요!') + '</small></div><button class="obtn" data-act="toggleclose">' + (p.closed ? '다시 열기' : '모집 마감하기') + '</button></div>';
   else if (joined) h += '<div class="dcard row2"><span class="ico">' + ic('group') + '</span><div class="rt"><b>참여 취소</b><small>취소하면 단체 채팅방에서 나가요.</small></div><button class="obtn" data-act="leave">참여 취소</button></div>';
   el.innerHTML = h; el.scrollTop = keep;
@@ -527,7 +528,7 @@ function paintMsgs(stick) {
     meta = meta ? '<div class="mmeta">' + meta + '</div>' : '';
     if (mine) h += '<div class="mrow me' + (first ? ' first' : '') + '"><div class="mline">' + meta + '<div class="bub">' + esc(m.body) + '</div></div></div>';
     else h += '<div class="mrow other' + (first ? ' first' : '') + '">' + (first ? av(sid, 36, true) : '<span class="avsp"></span>') +
-      '<div class="mcol">' + (first ? '<span class="nm">' + esc(nick(sid)) + '</span>' : '') +
+      '<div class="mcol">' + (first ? '<span class="nm">' + nm(sid) + '</span>' : '') +
       '<div class="mline"><button class="bub" data-act="msgtap" data-id="' + m.id + '">' + esc(m.body) + '</button>' + meta + '</div>' +
       (S.repMsg === m.id ? '<button class="mrep" data-act="repmsg" data-id="' + m.id + '">신고</button>' : '') + '</div></div>';
   });
@@ -549,7 +550,7 @@ function friendBtn(id) {
   return '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button>';
 }
 function openUser(id, nog) {
-  var f = S.fr.by[id], me = id === S.me.id, h = '<div class="profile">' + av(id, 52) + '<div><b>' + esc(nick(id)) + '</b>' + (!nog && gl(id) ? '<p>' + (gl(id) === '남' ? '남자' : '여자') + '</p>' : '') + '</div></div><div class="stack">';
+  var f = S.fr.by[id], me = id === S.me.id, h = '<div class="profile">' + av(id, 52) + '<div><b>' + nm(id) + '</b>' + (!nog && gl(id) ? '<p>' + (gl(id) === '남' ? '남자' : '여자') + '</p>' : '') + '</div></div><div class="stack">';
   if (!me) {
     if (f && f.status === 'accepted') h += '<button class="btn" data-act="chatwith" data-u="' + esc(id) + '">채팅하기</button>';
     else if (!f) h += '<button class="btn" data-act="freq" data-u="' + esc(id) + '">친구 요청 보내기</button>';
@@ -580,10 +581,10 @@ async function doSearch() {
   var q = (($('#sq') || $('#fq') || {}).value || '').trim(), el = $('#fres'); if (!el) return;
   if (!q) { el.innerHTML = ''; return; }
   var like = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
-  var rows = ok(await S.sb.from('profiles').select('id,nickname,gender').eq('school_id', S.me.school_id).neq('id', S.me.id).ilike('nickname', like).limit(20)) || [];
+  var rows = ok(await S.sb.from('profiles').select('id,nickname,gender,is_admin').eq('school_id', S.me.school_id).neq('id', S.me.id).ilike('nickname', like).limit(20)) || [];
   rows = rows.filter(function (r) { return S.blocks.indexOf(r.id) < 0; });
   rows.forEach(function (r) { S.names[r.id] = r; });
-  el.innerHTML = rows.length ? rows.map(function (r) { return '<div class="fl">' + av(r.id, 38) + '<div class="tx">' + esc(r.nickname) + '</div>' + friendBtn(r.id) + '</div>'; }).join('') : '<div class="empty">찾는 사람이 없어요.</div>';
+  el.innerHTML = rows.length ? rows.map(function (r) { return '<div class="fl">' + av(r.id, 38) + '<div class="tx">' + nm(r.id) + '</div>' + friendBtn(r.id) + '</div>'; }).join('') : '<div class="empty">찾는 사람이 없어요.</div>';
 }
 async function openMembers() {
   var v = S.view; if (!isRoom(v) || v.k !== 'group') return;
@@ -592,7 +593,7 @@ async function openMembers() {
   var p = (S.posts.meal || []).concat(S.posts.study || []).filter(function (x) { return x.id === v.post; })[0];
   var mineAuthor = p && p.author_id === S.me.id;
   openSheet('<h3>' + esc(v.title) + '</h3><p class="sub">참여 중인 사람 ' + rows.length + '명</p>' + rows.map(function (m) {
-    return '<div class="fl">' + av(m.user_id, 38) + '<div class="tx">' + esc(nick(m.user_id)) + (p && p.author_id === m.user_id ? '<small>글쓴이</small>' : '') + '</div>' + (m.user_id === S.me.id ? '' : '<button class="btn sm sec" data-act="user" data-u="' + esc(m.user_id) + '">프로필</button>') + '</div>';
+    return '<div class="fl">' + av(m.user_id, 38) + '<div class="tx">' + nm(m.user_id) + (p && p.author_id === m.user_id ? '<small>글쓴이</small>' : '') + '</div>' + (m.user_id === S.me.id ? '' : '<button class="btn sm sec" data-act="user" data-u="' + esc(m.user_id) + '">프로필</button>') + '</div>';
   }).join('') + '<div class="stack" style="margin-top:12px"><button class="btn sec" data-act="openpost" data-id="' + v.post + '">원본 글 보기</button>' + (mineAuthor ? '' : '<button class="btn dg" data-act="leavegroup">이 모임에서 나가기</button>') + '</div>');
 }
 
