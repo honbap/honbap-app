@@ -445,11 +445,9 @@ function vMe() {
   var card = function (icon, title, sub, inner) { return '<section class="mcard"><div class="mh"><span class="mi">' + ic(icon) + '</span><div class="mt"><b>' + title + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</div></div>' + (inner || '') + '</section>'; };
   return '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('notes', 'bell', '알림') + '</div></div>' +
     '<main class="mepage"><section class="mcard prof">' + av(S.me.id, 72) + '<div class="pn"><b>' + esc(S.me.nickname) + '</b><small>' + esc(schoolName(S.me.school_id)) + ' · ' + esc(S.me.gender) + '</small></div></section>' +
-    card('pencil', '닉네임 바꾸기', S.nickEdit ? '' : esc(S.me.nickname), (S.nickEdit && !cool ?
-      '<div class="inline"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"></div>' +
-      '<div class="row" style="margin-top:10px"><button class="btn sec" data-act="nickcancel">취소</button><button class="btn" data-act="saveprofile">닉네임 저장</button></div>' :
-      '<button class="btn sec" data-act="nickedit"' + (cool ? ' disabled' : '') + '>닉네임 바꾸기</button>') +
-      '<p class="mnote">' + (cool ? '<span class="warn">' + (next.getMonth() + 1) + '월 ' + next.getDate() + '일 ' + hm(next) + ' 이후에 바꿀 수 있어요.</span> ' : '') + '닉네임은 7일에 한 번만 바꿀 수 있어요. 학교와 성별은 바꿀 수 없어요.</p>') +
+    '<section class="mcard"><button class="mh acc" data-act="' + (S.nickEdit ? 'nickcancel' : 'nickedit') + '" aria-expanded="' + !!(S.nickEdit && !cool) + '"' + (cool ? ' disabled' : '') + '><span class="mi">' + ic('pencil') + '</span><div class="mt"><b>닉네임 바꾸기</b><small>' + esc(S.me.nickname) + '</small></div><span class="dn' + (S.nickEdit ? ' up' : '') + '">' + chev + '</span></button>' +
+      (S.nickEdit && !cool ? '<div class="inline" style="margin-top:12px"><input type="text" id="mn" maxlength="10" value="' + esc(S.me.nickname) + '" aria-label="닉네임" autocomplete="off"><button class="btn" data-act="saveprofile">닉네임 저장</button></div>' : '') +
+      '<p class="mnote">' + (cool ? '<span class="warn">' + (next.getMonth() + 1) + '월 ' + next.getDate() + '일 ' + hm(next) + ' 이후에 바꿀 수 있어요.</span> ' : '') + '닉네임은 7일에 한 번만 바꿀 수 있어요. 학교와 성별은 바꿀 수 없어요.</p></section>' +
     card('ban', '차단한 사람', bl ? '' : '차단한 사람이 없어요.', bl) +
     notifyCard() +
     '<section class="mcard"><div class="mh"><span class="mi fill">' + ic('info') + '</span><div class="mt"><b>안내</b></div></div><div class="links">' +

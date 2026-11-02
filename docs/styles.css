@@ -450,3 +450,9 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 .row2 .obtn { white-space: nowrap; }
 .die { font-size: 30px; line-height: 1; height: 30px; }
 .rlp { min-width: 64px; }
+
+.mh.acc { width: 100%; background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.mh.acc:disabled { opacity: .6; cursor: default; }
+.mh.acc .dn { margin-left: auto; display: grid; place-items: center; color: var(--ink2); transform: rotate(90deg); transition: transform .2s; }
+.mh.acc .dn.up { transform: rotate(-90deg); }
+.mh.acc .dn .ic { width: 20px; height: 20px; }
