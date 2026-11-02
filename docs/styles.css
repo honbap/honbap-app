@@ -348,3 +348,9 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-ac
 #app { height: 100vh; height: 100dvh; }
 input, select, textarea { font-size: 16px; }
 main, .pbody, .msgs, .auth { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+/* 아이폰 상단(시간·배터리) 흐림 영역 아래에서 내용이 시작하도록 */
+.top { padding-top: calc(env(safe-area-inset-top, 0px) + 18px); }
+.bar { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.auth { padding-top: calc(env(safe-area-inset-top, 0px) + 32px); }
+html { background: var(--surface); }
