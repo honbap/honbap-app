@@ -504,3 +504,15 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 .rlppl { align-items: flex-start; justify-content: center; gap: 12px; }
 .rlp { padding: 6px 8px; }
 .rladd { margin-top: 8px; flex: none; }
+
+/* 사진: 테두리 없이, 글과 함께 */
+.bub.pic, .mrow.me .bub.pic { padding: 0; border: 0; background: transparent; }
+.mimg { border-radius: 14px; }
+.pcap { margin-top: 4px; padding: 8px 12px; border-radius: 16px; font-size: 15px; line-height: 1.45; background: var(--surface); border: 1px solid var(--line); color: var(--ink); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mrow.me .pcap { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.pprev { position: relative; display: inline-block; margin: 8px 12px 0; }
+.pprev img { display: block; height: 84px; max-width: 160px; object-fit: cover; border-radius: 12px; }
+.pprev button { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--ink); color: var(--surface); display: grid; place-items: center; padding: 0; }
+.pprev button .ic { width: 14px; height: 14px; }
+#pprev { background: var(--surface); }
+.rladd { align-self: flex-start; }

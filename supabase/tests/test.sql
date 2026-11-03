@@ -385,6 +385,14 @@ select t.ok((select count(*) from storage.objects where bucket_id = 'chat') = 0,
 select t.fails(format($$select send_image('%s/c.jpg', null, %s)$$, :'dave', (select id from p4)), 'ROOM_NOT_FOUND');
 reset role;
 update public.profiles set is_admin = true where id = :'dave';
+\echo === 사진 + 글
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+insert into storage.objects (bucket_id, name) values ('chat', :'carol' || '/a2.jpg');
+select send_image(:'carol' || '/a2.jpg', null, (select id from p4), '여기예요 😊');
+select t.ok((select count(*) from messages where image_path like '%/a2.jpg' and body = '여기예요 😊') = 1, '사진과 글을 함께 보낼 수 있음');
+select t.fails(format($$select send_image('%s/a2.jpg', null, %s, '씨발')$$, :'carol', (select id from p4)), 'BAD_CONTENT');
+reset role;
 \echo === 사진 신고
 select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
 set role authenticated;
