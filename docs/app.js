@@ -332,18 +332,22 @@ function rlSpin() {
 function rlBet() {
   var r = rlLoad(); if (r.spinning) return;
   if (r.people.length < 2) { toast('참여자를 2명 이상 넣어 주세요.', true); return; }
-  var final = rlRand(r.people.length), steps = 20 + rlRand(r.people.length), k = 0, total = steps * r.people.length + ((final - (steps * r.people.length) % r.people.length) + r.people.length) % r.people.length;
+  var n = r.people.length, final = rlRand(n), T = 22; while (T % n !== final) T++;
+  /* 사람 수와 상관없이 약 4초 동안 점점 느려지다가 멈춰요 */
+  var w = [], sum = 0, k;
+  for (k = 1; k <= T; k++) { var x = 1 + 6 * Math.pow(k / T, 2); w.push(x); sum += x; }
+  var ms = w.map(function (x) { return x * 4000 / sum; }), at = 0;
   r.spinning = true; r.bet = null; var bt = $('#rlbet'); if (bt) bt.textContent = '두근두근…';
   (function tick() {
     var els = document.querySelectorAll('.rlp');
-    for (var j = 0; j < els.length; j++) els[j].classList.toggle('hi', j === k % r.people.length);
-    if (k >= total) {
-      r.spinning = false; r.bet = k % r.people.length;
+    for (var j = 0; j < els.length; j++) { els[j].classList.toggle('hi', j === at % n); els[j].classList.remove('lose'); }
+    if (at >= T) {
+      r.spinning = false; r.bet = at % n;
       for (var j2 = 0; j2 < els.length; j2++) { els[j2].classList.remove('hi'); els[j2].classList.toggle('lose', j2 === r.bet); }
       var b2 = $('#rlbet'); if (b2) b2.innerHTML = '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 밥 쏩니다!';
       return;
     }
-    k++; setTimeout(tick, 70 + Math.floor(k * k / 6));
+    at++; setTimeout(tick, ms[at - 1]);
   })();
 }
 function rlEdit() {
