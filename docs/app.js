@@ -355,14 +355,14 @@ function rlEdit() {
   openSheet('<h3>메뉴 수정</h3><div id="rle">' + r.menus.map(function (m, i) {
     return '<div class="fl"><span style="font-size:22px">' + esc(m[0]) + '</span><div class="tx">' + esc(m[1]) + '</div><button class="btn sm sec" data-act="rldel" data-i="' + i + '"' + (r.menus.length <= 2 ? ' disabled' : '') + '>삭제</button></div>';
   }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rle1" maxlength="2" value="🍽️" style="max-width:64px;text-align:center" aria-label="이모지"><input type="text" id="rle2" maxlength="8" placeholder="메뉴 이름" aria-label="메뉴 이름" autocomplete="off"><button class="btn" data-act="rladd">추가</button></div>' +
-    '<p class="mnote">메뉴는 2개 이상 12개 이하로 둘 수 있어요. 이 기기에만 저장돼요.</p><button class="btn sec" data-act="rldone" style="margin-top:8px">완료</button>');
+    '<p class="mnote">메뉴는 2개 이상 12개 이하로 둘 수 있어요. 이 기기에만 저장돼요.</p><p class="mnote ok2" id="rlhint">' + (S.rlAdded ? '추가했어요! 다 넣었으면 아래 <b>완료</b>를 눌러 주세요.' : '') + '</p><button class="btn" data-act="rldone" style="margin-top:8px">완료</button>');
 }
 function rlPeople() {
   var r = rlLoad();
   openSheet('<h3>참여자 추가</h3><div id="rlpe">' + r.people.map(function (n, i) {
     return '<div class="fl">' + av(n, 34) + '<div class="tx">' + esc(n) + '</div><button class="btn sm sec" data-act="rlpdel" data-i="' + i + '"' + (r.people.length <= 1 ? ' disabled' : '') + '>삭제</button></div>';
   }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rlpn" maxlength="8" placeholder="이름 (최대 8자)" aria-label="이름" autocomplete="off"><button class="btn" data-act="rlpadd">추가</button></div>' +
-    '<p class="mnote">최대 10명까지 넣을 수 있어요. 이 기기에만 저장돼요.</p><button class="btn sec" data-act="rldone" style="margin-top:8px">완료</button>');
+    '<p class="mnote">최대 10명까지 넣을 수 있어요. 이 기기에만 저장돼요.</p><p class="mnote ok2" id="rlhint">' + (S.rlAdded ? '추가했어요! 다 넣었으면 아래 <b>완료</b>를 눌러 주세요.' : '') + '</p><button class="btn" data-act="rldone" style="margin-top:8px">완료</button>');
 }
 function vMain() {
   var body;
@@ -753,25 +753,25 @@ function setCap(n) { S.cap = Math.max(2, Math.min(10, n)); var c = $('#capv'); i
 var H = {
   close: function () { closeSheet(); },
   rlspin: function () { rlSpin(); },
+  rldone: function () { S.rlAdded = false; closeSheet(); render(); },
   rlbet: function () { rlBet(); },
-  rledit: function () { rlEdit(); },
-  rlpeople: function () { rlPeople(); },
-  rldone: function () { closeSheet(); render(); },
-  rldel: function (el) { var r = rlLoad(); if (r.menus.length > 2) { r.menus.splice(+el.dataset.i, 1); r.res = null; rlSave(); rlEdit(); } },
+  rledit: function () { S.rlAdded = false; rlEdit(); },
+  rlpeople: function () { S.rlAdded = false; rlPeople(); },
+  rldel: function (el) { var r = rlLoad(); if (r.menus.length > 2) { r.menus.splice(+el.dataset.i, 1); r.res = null; rlSave(); render(); rlEdit(); } },
   rladd: function () {
     var r = rlLoad(), e = ($('#rle1').value || '').trim() || '🍽️', n = ($('#rle2').value || '').trim();
     if (!n) { toast('메뉴 이름을 적어 주세요.', true); return; }
     if (r.menus.length >= 12) { toast('메뉴는 12개까지예요.', true); return; }
     if (r.menus.some(function (m) { return m[1] === n; })) { toast('이미 있는 메뉴예요.', true); return; }
-    r.menus.push([e, n]); r.res = null; rlSave(); rlEdit();
+    r.menus.push([e, n]); r.res = null; rlSave(); render(); S.rlAdded = true; rlEdit(); setTimeout(function () { var i = $('#rle2'); if (i) i.focus(); }, 30);
   },
-  rlpdel: function (el) { var r = rlLoad(); if (r.people.length > 1) { r.people.splice(+el.dataset.i, 1); r.bet = null; rlSave(); rlPeople(); } },
+  rlpdel: function (el) { var r = rlLoad(); if (r.people.length > 1) { r.people.splice(+el.dataset.i, 1); r.bet = null; rlSave(); render(); rlPeople(); } },
   rlpadd: function () {
     var r = rlLoad(), n = ($('#rlpn').value || '').trim();
     if (!n) { toast('이름을 적어 주세요.', true); return; }
     if (r.people.length >= 10) { toast('최대 10명까지예요.', true); return; }
     if (r.people.indexOf(n) >= 0) { toast('같은 이름이 이미 있어요.', true); return; }
-    r.people.push(n); r.bet = null; rlSave(); rlPeople();
+    r.people.push(n); r.bet = null; rlSave(); render(); S.rlAdded = true; rlPeople(); setTimeout(function () { var i = $('#rlpn'); if (i) i.focus(); }, 30);
   },
   rlpost: function () {
     var r = rlLoad(); if (r.res == null) return; var m = r.menus[r.res];
