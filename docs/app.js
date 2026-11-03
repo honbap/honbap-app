@@ -623,8 +623,8 @@ function paintRooms() {
   var el = $('#rooms'); if (!el) return;
   var rooms = (S.rooms || []).filter(function (r) { return r.kind === S.chatSeg && !(r.kind === 'dm' && isHidden(r)); });
   var badge = function (n) { return n ? ' <span class="bdg">' + (n > 99 ? '99+' : n) + '</span>' : ''; };
-  var h = '<div class="seg segm seg3" role="group" aria-label="채팅 종류"><button data-act="chatseg" data-v="dm" aria-pressed="' + (S.chatSeg === 'dm') + '">채팅' + badge(unreadOf('dm')) + '</button>' +
-    '<button data-act="chatseg" data-v="fr" aria-pressed="' + (S.chatSeg === 'fr') + '">친구' + badge(S.fr.incoming.length) + '</button>' +
+  var h = '<div class="seg segm seg3" role="group" aria-label="채팅 종류"><button data-act="chatseg" data-v="fr" aria-pressed="' + (S.chatSeg === 'fr') + '">친구' + badge(S.fr.incoming.length) + '</button>' +
+    '<button data-act="chatseg" data-v="dm" aria-pressed="' + (S.chatSeg === 'dm') + '">채팅' + badge(unreadOf('dm')) + '</button>' +
     '<button data-act="chatseg" data-v="group" aria-pressed="' + (S.chatSeg === 'group') + '">내 모임' + badge(unreadOf('group')) + '</button></div>';
   if (S.chatSeg === 'fr') {
     h += S.fr.incoming.map(function (f) {
