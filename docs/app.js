@@ -254,7 +254,7 @@ function teardown() {
 /* ───────── 화면 그리기 ───────── */
 function render() {
   var el = $('#screen'), h;
-  if (!S.ready) h = '<div class="center">불러오는 중…</div>';
+  if (!S.ready) h = '<div class="center"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>';
   else if (!S.user) h = vAuth();
   else if (!S.me) h = vSetup();
   else if (S.me.suspended) h = '<div class="center"><div class="stack"><p class="warn">이용이 정지된 계정이에요.</p><button class="btn sec" data-act="logout">로그아웃</button></div></div>';
@@ -525,7 +525,7 @@ function postCard(p, hl) {
 function paintList() {
   var el = $('#list'); if (!el || S.tab !== 'board') return;
   var searching = false, rows = S.posts[S.kind];
-  if (!rows) { el.innerHTML = '<div class="empty">불러오는 중…</div>'; return; }
+  if (!rows) { el.innerHTML = '<div class="empty"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>'; return; }
   if (!rows.length) { el.innerHTML = searching ? '<div class="empty">검색 결과가 없어요.</div>' : '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
   el.innerHTML = rows.map(function (p) { return postCard(p); }).join('');
 }
@@ -539,7 +539,7 @@ function paintRooms() {
     return '<div class="req"><div class="fl">' + av(f.requester_id, 40) + '<div class="tx">' + nm(f.requester_id) + '<small>친구 요청이 왔어요</small></div>' +
       '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button><button class="btn sm sec" data-act="respond" data-id="' + f.id + '" data-v="0">거절</button></div></div>';
   }).join('');
-  if (S.rooms === null) h += '<div class="empty">불러오는 중…</div>';
+  if (S.rooms === null) h += '<div class="empty"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>';
   else if (!rooms.length) h += S.chatSeg === 'dm' ? '<div class="empty">아직 대화가 없어요.<br>오른쪽 위 버튼으로 친구를 추가해 보세요.</div>' : '<div class="empty">참여한 모임이 없어요.<br>게시판에서 글에 "참여하기"를 누르면 여기에 모여요.</div>';
   else h += rooms.map(function (r) {
     var cnt = r.unread ? '<span class="bdg acc">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '';
@@ -619,7 +619,7 @@ function paintMsgs(stick) {
   var el = $('#msgs'); if (!el || !isRoom(S.view)) return;
   var v = S.view, ms = S.msgs, me = S.me.id, dm = v.k === 'dm';
   var mc = $('#mcount'); if (mc) { var r = (S.rooms || []).filter(function (x) { return x.room_key === roomKey(v); })[0]; mc.textContent = r && r.member_count ? r.member_count + '명 참여 중' : ''; }
-  if (ms === null) { el.innerHTML = '<div class="none">불러오는 중…</div>'; return; }
+  if (ms === null) { el.innerHTML = '<div class="none"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>'; return; }
   if (!ms.length) { el.innerHTML = '<div class="none">' + (dm ? esc(nick(v.other)) + '님과의 첫 대화를 시작해 보세요.' : '모임 채팅을 시작해 보세요.<br>참여한 뒤의 대화만 볼 수 있어요.') + '</div>'; return; }
   var near = el.scrollHeight - el.scrollTop - el.clientHeight < 90, lastReadMine = null, h = '';
   if (dm) ms.forEach(function (m) { if (m.sender_id === me && new Date(m.created_at).getTime() <= S.peerRead) lastReadMine = m.id; });
