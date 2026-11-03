@@ -623,21 +623,23 @@ function paintRooms() {
   var el = $('#rooms'); if (!el) return;
   var rooms = (S.rooms || []).filter(function (r) { return r.kind === S.chatSeg && !(r.kind === 'dm' && isHidden(r)); });
   var badge = function (n) { return n ? ' <span class="bdg">' + (n > 99 ? '99+' : n) + '</span>' : ''; };
-  var h = '<div class="seg segm" role="group" aria-label="채팅 종류"><button data-act="chatseg" data-v="dm" aria-pressed="' + (S.chatSeg === 'dm') + '">친구' + badge(unreadOf('dm') + S.fr.incoming.length) + '</button>' +
+  var h = '<div class="seg segm seg3" role="group" aria-label="채팅 종류"><button data-act="chatseg" data-v="dm" aria-pressed="' + (S.chatSeg === 'dm') + '">채팅' + badge(unreadOf('dm')) + '</button>' +
+    '<button data-act="chatseg" data-v="fr" aria-pressed="' + (S.chatSeg === 'fr') + '">친구' + badge(S.fr.incoming.length) + '</button>' +
     '<button data-act="chatseg" data-v="group" aria-pressed="' + (S.chatSeg === 'group') + '">내 모임' + badge(unreadOf('group')) + '</button></div>';
-  if (S.chatSeg === 'dm') h += S.fr.incoming.map(function (f) {
-    return '<div class="req"><div class="fl">' + av(f.requester_id, 40) + '<div class="tx">' + nm(f.requester_id) + '<small>친구 요청이 왔어요</small></div>' +
-      '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button><button class="btn sm sec" data-act="respond" data-id="' + f.id + '" data-v="0">거절</button></div></div>';
-  }).join('');
-  if (S.chatSeg === 'dm') {
+  if (S.chatSeg === 'fr') {
+    h += S.fr.incoming.map(function (f) {
+      return '<div class="req"><div class="fl">' + av(f.requester_id, 40) + '<div class="tx">' + nm(f.requester_id) + '<small>친구 요청이 왔어요</small></div>' +
+        '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button><button class="btn sm sec" data-act="respond" data-id="' + f.id + '" data-v="0">거절</button></div></div>';
+    }).join('');
     var fids = Object.keys(S.fr.by).filter(function (id) { return S.fr.by[id].status === 'accepted' && S.blocks.indexOf(id) < 0; })
       .sort(function (x, y) { return nick(x).localeCompare(nick(y), 'ko'); });
     h += '<div class="shd">친구 ' + fids.length + '명</div>' + (fids.length ? '<div class="frl">' + fids.map(function (id) {
       return '<button class="frow" data-act="user" data-u="' + esc(id) + '">' + av(id, 40) + '<span class="fn">' + nm(id) + '</span>' + ic('chev') + '</button>';
-    }).join('') + '</div>' : '<div class="fempty">아직 친구가 없어요. 오른쪽 위 버튼으로 친구를 추가해 보세요.</div>') + '<div class="shd">대화</div>';
+    }).join('') + '</div>' : '<div class="fempty">아직 친구가 없어요. 검색 탭에서 친구를 찾아 추가해 보세요.</div>');
+    el.innerHTML = h; return;
   }
   if (S.rooms === null) h += '<div class="empty"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>';
-  else if (!rooms.length) h += S.chatSeg === 'dm' ? '<div class="empty">아직 대화가 없어요.<br>오른쪽 위 버튼으로 친구를 추가해 보세요.</div>' : '<div class="empty">참여한 모임이 없어요.<br>게시판에서 글에 "참여하기"를 누르면 여기에 모여요.</div>';
+  else if (!rooms.length) h += S.chatSeg === 'dm' ? '<div class="empty">아직 대화가 없어요.<br>친구 탭에서 친구를 눌러 채팅을 시작해 보세요.</div>' : '<div class="empty">참여한 모임이 없어요.<br>게시판에서 글에 "참여하기"를 누르면 여기에 모여요.</div>';
   else h += rooms.map(function (r) {
     var cnt = r.unread ? '<span class="bdg acc">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '';
     if (r.kind === 'group') {
