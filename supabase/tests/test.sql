@@ -368,4 +368,27 @@ select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text,
 set role authenticated;
 select t.fails($$select send_special('dice', null, (select id from p4))$$, 'ROOM_NOT_FOUND');
 reset role;
+\echo === 채팅 사진
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+insert into storage.objects (bucket_id, name) values ('chat', :'carol' || '/a1.jpg');
+select t.fails($$insert into storage.objects (bucket_id, name) values ('chat', '00000000-0000-0000-0000-000000000000/x.jpg')$$, 'new row violates row-level security policy for table "objects"');
+select send_image(:'carol' || '/a1.jpg', null, (select id from p4));
+select t.ok((select count(*) from messages where post_id = (select id from p4) and image_path is not null and body = '📷 사진') = 1, '사진 메시지가 올라감');
+select t.fails(format($$select send_image('%s/b.jpg', null, %s)$$, :'dave', (select id from p4)), 'BAD_MESSAGE');
+select t.fails(format($$select send_image('%s/../x.jpg', null, %s)$$, :'carol', (select id from p4)), 'BAD_MESSAGE');
+reset role;
+update public.profiles set is_admin = false where id = :'dave';
+select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text, false);
+set role authenticated;
+select t.ok((select count(*) from storage.objects where bucket_id = 'chat') = 0, '채팅방 밖 사람은 사진을 볼 수 없음');
+select t.fails(format($$select send_image('%s/c.jpg', null, %s)$$, :'dave', (select id from p4)), 'ROOM_NOT_FOUND');
+reset role;
+update public.profiles set is_admin = true where id = :'dave';
+\echo === 사진 신고
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+select report_content('불쾌하거나 부적절한 내용', '', null, null, null, (select id from messages where image_path is not null limit 1));
+reset role;
+select t.ok((select count(*) from reports where snapshot like '📷 사진 %/a1.jpg') = 1, '사진 신고에는 사진 경로가 함께 저장됨');
 \echo ALL TESTS PASSED

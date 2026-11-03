@@ -19,6 +19,15 @@ function target(r) {
   if (r.target_post) return '모집글';
   return '이용자';
 }
+var IMG_RE = /\s?[0-9a-f-]{36}\/[0-9A-Za-z._-]+\.jpg/;
+function imgTag(snap) { var m = IMG_RE.exec(snap || ''); return m ? '<img class="aimg" data-p="' + esc(m[0].trim()) + '" alt="신고된 사진" style="max-width:100%;max-height:320px;border-radius:12px;margin-top:8px">' : ''; }
+async function fillImgs() {
+  var imgs = Array.prototype.slice.call(document.querySelectorAll('img.aimg:not([src])')); if (!imgs.length) return;
+  try {
+    var r = await sb.storage.from('chat').createSignedUrls(imgs.map(function (i) { return i.dataset.p; }), 3600);
+    (r.data || []).forEach(function (d) { imgs.forEach(function (i) { if (i.dataset.p === d.path && d.signedUrl) i.src = d.signedUrl; }); });
+  } catch (e) { /* 무시 */ }
+}
 async function load() {
   var rows = ok(await sb.from('reports').select('*').eq('status', filter).order('id', { ascending: false }).limit(100));
   var ids = [];
@@ -42,7 +51,7 @@ function render(rows, susp) {
     var tu = pf[r.target_user], tsusp = tu && tu.suspended;
     h += '<article class="rp"><div class="h"><b>' + target(r) + ' 신고 · ' + esc(r.reason) + '</b><span class="meta">' + when(r.created_at) + '</span></div>' +
       '<div class="meta">신고자 ' + esc(nick(r.reporter_id)) + ' → 대상 ' + esc(nick(r.target_user)) + (tsusp ? ' (정지됨)' : '') + '</div>' +
-      (r.snapshot ? '<blockquote>' + esc(r.snapshot) + '</blockquote>' : '') +
+      (r.snapshot ? '<blockquote>' + esc(r.snapshot.replace(IMG_RE, '')) + '</blockquote>' + imgTag(r.snapshot) : '') +
       (r.detail ? '<div class="meta">신고자 설명: ' + esc(r.detail) + '</div>' : '');
     if (r.status === 'open') {
       h += '<div class="row" style="margin-top:10px"><button class="btn sm sec" data-a="dismiss" data-id="' + r.id + '">기각</button>' +
@@ -56,7 +65,7 @@ function render(rows, susp) {
   h += '<h2>정지된 이용자</h2>' + (susp.length ? '<div class="card">' + susp.map(function (p) {
     return '<div class="fl"><div class="tx">' + esc(p.nickname) + ' · ' + esc(p.gender) + '</div><button class="btn sm sec" data-u="' + p.id + '">정지 해제</button></div>';
   }).join('') + '</div>' : '<div class="empty">정지된 이용자가 없어요.</div>');
-  $('#admin').innerHTML = h;
+  $('#admin').innerHTML = h; fillImgs();
 }
 document.addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b || busy) return;

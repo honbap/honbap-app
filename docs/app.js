@@ -19,6 +19,7 @@ var ICON = {
   user: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-4 4-6 8-6s8 2 8 6', more: 'M12 6v.01M12 12v.01M12 18v.01',
   search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3', userplus: 'M10 12a4 4 0 100-8 4 4 0 000 8zM2 20c0-4 4-6 8-6M18 8v6M15 11h6', close: 'M6 6l12 12M18 6L6 18',
   pencil: 'M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4', ban: 'M12 21a9 9 0 100-18 9 9 0 000 18zM6 6l12 12', info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01', chev: 'M9 5l7 7-7 7', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z', cal: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4', crown: 'M3 8l4 4 5-7 5 7 4-4-2 11H5L3 8z', heart: 'M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z', clock: 'M12 7v5l3 2M12 21a9 9 0 100-18 9 9 0 000 18z',
+  camera: 'M4 7h3l2-2h6l2 2h3v12H4zM12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
   wheel: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4',
   group: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16.5 4.5a3.5 3.5 0 010 6.5M18 14.5c2.5.5 4 2.2 4 5.5'
 };
@@ -174,7 +175,7 @@ async function loadCmts() {
 }
 async function loadMsgs() {
   var v = S.view; if (!isRoom(v)) return;
-  var q = S.sb.from('messages').select('id,sender_id,body,created_at,hidden,special');
+  var q = S.sb.from('messages').select('id,sender_id,body,created_at,hidden,special,image_path');
   q = v.k === 'dm' ? q.eq('dm_id', v.dm) : q.eq('post_id', v.post);
   var rows = ok(await q.order('id', { ascending: false }).limit(100)) || [];
   await loadNames(rows.map(function (r) { return r.sender_id; }));
@@ -544,7 +545,7 @@ function vRoom() {
   if (v.k === 'dm') head = '<button class="who" data-act="user" data-u="' + esc(v.other) + '">' + av(v.other, 34) + '<b>' + nm(v.other) + '</b></button>';
   else head = '<button class="who" data-act="members">' + gav(v.post, v.title, 34) + '<span class="wt"><b>' + esc(v.title) + '</b><small id="mcount"></small></span></button>';
   return '<div class="page"><div class="bar">' + ib('back', 'back', '뒤로') + head + ib('roommenu', 'more', '채팅방 메뉴') + '</div>' +
-    '<div class="chat"><p class="safe">처음 만나는 사람과는 공개된 장소에서 만나고, 개인정보는 알려 주지 마세요. 불편하면 메시지를 눌러 신고할 수 있어요.</p><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><input type="text" id="mi" maxlength="500" placeholder="메시지 입력 (@성별 @주사위)" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
+    '<div class="chat"><p class="safe">처음 만나는 사람과는 공개된 장소에서 만나고, 개인정보는 알려 주지 마세요. 불편하면 메시지를 눌러 신고할 수 있어요.</p><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><button class="cam" data-act="pickphoto" aria-label="사진 보내기">' + ic('camera') + '</button><input type="file" id="mph" accept="image/*" hidden><input type="text" id="mi" maxlength="500" placeholder="메시지 입력 (@성별 @주사위)" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
 }
 
 /* 부분 갱신 (입력 중인 칸을 건드리지 않아요) */
@@ -714,6 +715,59 @@ function gUnread(m) {
   });
   return n;
 }
+/* ---------- 채팅 사진 ---------- */
+S.imgUrl = {};
+function msgBody(m) {
+  if (!m.image_path) return esc(m.body);
+  var u = S.imgUrl[m.image_path];
+  return '<img class="mimg" data-act="viewimg" data-p="' + esc(m.image_path) + '" data-id="' + m.id + '" alt="사진"' + (u ? ' src="' + esc(u) + '"' : '') + '>';
+}
+async function fillImages() {
+  var imgs = Array.prototype.slice.call(document.querySelectorAll('img.mimg:not([src])')); if (!imgs.length) return;
+  var paths = imgs.map(function (i) { return i.dataset.p; }).filter(function (p, i, a) { return a.indexOf(p) === i; });
+  try {
+    var r = await S.sb.storage.from('chat').createSignedUrls(paths, 3600); if (r.error) throw r.error;
+    (r.data || []).forEach(function (d) { if (d.signedUrl) S.imgUrl[d.path] = d.signedUrl; });
+    imgs.forEach(function (i) { var u = S.imgUrl[i.dataset.p]; if (u && i.isConnected) i.src = u; });
+  } catch (e) { /* 사진을 못 불러와도 채팅은 계속 돼요 */ }
+}
+function loadBitmap(file) {
+  return new Promise(function (res, rej) {
+    var url = URL.createObjectURL(file), im = new Image();
+    im.onload = function () { URL.revokeObjectURL(url); res(im); };
+    im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('BAD_IMAGE')); };
+    im.src = url;
+  });
+}
+/* 큰 사진은 가로·세로 1280px 안으로 줄이고 JPEG로 압축해요 (보통 100~300KB) */
+async function compressPhoto(file) {
+  var im = await loadBitmap(file), w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, 1280 / Math.max(w, h));
+  var q = 0.75, blob = null;
+  for (var tries = 0; tries < 4; tries++) {
+    var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+    var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+    blob = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', q); });
+    if (blob && blob.size <= 900 * 1024) return blob;
+    q -= 0.12; k *= 0.8;
+  }
+  throw new Error('IMAGE_TOO_BIG');
+}
+async function sendPhoto(file) {
+  var v = S.view; if (!file || !isRoom(v) || S.photoBusy) return;
+  if (!/^image\//.test(file.type)) { toast('사진 파일만 보낼 수 있어요.', true); return; }
+  S.photoBusy = true; toast('사진을 보내는 중…');
+  try {
+    var blob = await compressPhoto(file);
+    var path = S.me.id + '/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.jpg';
+    var up = await S.sb.storage.from('chat').upload(path, blob, { contentType: 'image/jpeg', upsert: false }); if (up.error) throw up.error;
+    await rpc('send_image', v.k === 'dm' ? { p_path: path, p_dm_id: v.dm } : { p_path: path, p_post: v.post });
+    await loadMsgs(); var m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight;
+  } catch (e) { toast(e && (e.message === 'IMAGE_TOO_BIG' || e.message === 'BAD_IMAGE') ? '이 사진은 보낼 수 없어요. 다른 사진을 골라 주세요.' : msg(e), true); }
+  finally { S.photoBusy = false; }
+}
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'mph') { var f = e.target.files && e.target.files[0]; e.target.value = ''; sendPhoto(f); }
+});
 function paintMsgs(stick) {
   var el = $('#msgs'); if (!el || !isRoom(S.view)) return;
   var v = S.view, ms = S.msgs, me = S.me.id, dm = v.k === 'dm';
@@ -738,13 +792,13 @@ function paintMsgs(stick) {
       meta = (gn > 0 ? '<span class="rd" aria-label="아직 안 읽은 사람 ' + gn + '명">' + gn + '</span>' : '') + (lastOfMin ? '<span>' + hm(m.created_at) + '</span>' : '');
     }
     meta = meta ? '<div class="mmeta">' + meta + '</div>' : '';
-    if (mine) h += '<div class="mrow me' + (first ? ' first' : '') + '"><div class="mline">' + meta + '<div class="bub' + (m.special ? ' sp' : '') + '">' + esc(m.body) + '</div></div></div>';
+    if (mine) h += '<div class="mrow me' + (first ? ' first' : '') + '"><div class="mline">' + meta + '<div class="bub' + (m.special ? ' sp' : '') + (m.image_path ? ' pic' : '') + '">' + msgBody(m) + '</div></div></div>';
     else h += '<div class="mrow other' + (first ? ' first' : '') + '">' + (first ? av(sid, 36, true) : '<span class="avsp"></span>') +
       '<div class="mcol">' + (first ? '<span class="nm">' + nm(sid) + '</span>' : '') +
-      '<div class="mline"><button class="bub' + (m.special ? ' sp' : '') + '" data-act="msgtap" data-id="' + m.id + '">' + esc(m.body) + '</button>' + meta + '</div>' +
+      '<div class="mline"><button class="bub' + (m.special ? ' sp' : '') + (m.image_path ? ' pic' : '') + '" data-act="msgtap" data-id="' + m.id + '">' + msgBody(m) + '</button>' + meta + '</div>' +
       (S.repMsg === m.id ? '<button class="mrep" data-act="repmsg" data-id="' + m.id + '">신고</button>' : '') + '</div></div>';
   });
-  el.innerHTML = h;
+  el.innerHTML = h; fillImages();
   if (stick || near) el.scrollTop = el.scrollHeight;
 }
 
@@ -1075,6 +1129,12 @@ var H = {
   },
   chatwith: async function (el) { var id = el.dataset.u, dm = await rpc('open_dm', { p_user: id }); var hh = lsGet('hb_hide'); if (hh['d:' + dm]) { delete hh['d:' + dm]; lsSet('hb_hide', hh); } S.tab = 'chat'; S.chatSeg = 'dm'; await openRoom(dm, id); },
   room: function (el) { return openRoom(el.dataset.dm, el.dataset.u); },
+  pickphoto: function () { var i = $('#mph'); if (i) i.click(); },
+  viewimg: function (el) {
+    var u = S.imgUrl[el.dataset.p]; if (!u) return;
+    var m = (S.msgs || []).filter(function (x) { return x.id === Number(el.dataset.id); })[0], other = m && m.sender_id !== S.me.id;
+    openSheet('<img class="bigimg" src="' + esc(u) + '" alt="사진">' + (other ? '<button class="btn sec" data-act="repmsg" data-id="' + esc(el.dataset.id) + '" style="margin-top:10px">신고</button>' : '') + '<button class="btn" data-act="close" style="margin-top:8px">닫기</button>');
+  },
   msgtap: function (el) { var id = Number(el.dataset.id); S.repMsg = S.repMsg === id ? null : id; paintMsgs(); },
   sendmsg: async function () {
     var i = $('#mi'), b = (i.value || '').trim(), v = S.view; if (!b) return;
