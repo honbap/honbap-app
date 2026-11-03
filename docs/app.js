@@ -563,30 +563,34 @@ async function leaveRoom(k, id) {
 }
 /* 채팅 목록: 옆으로 밀면 차단·나가기 버튼이 나와요 */
 function swRow(li, acts, n) {
-  return '<div class="swr" style="--w:' + (n * 72) + 'px"><div class="swa lf">' + acts + '</div><div class="swa rt">' + acts + '</div><div class="swi">' + li + '</div></div>';
+  return '<div class="swr" style="--w:' + (n * 72) + 'px"><div class="swa">' + acts + '</div><div class="swi">' + li + '</div></div>';
 }
+/* 오른쪽으로 밀면 왼쪽에서 버튼이 나와요. 손가락을 그대로 따라가고, 놓으면 부드럽게 열리거나 닫혀요. */
 (function swipeInit() {
-  var st = null, W = 0;
-  function rows() { return document.querySelectorAll('.swr.open'); }
-  function closeAll(except) { rows().forEach(function (r) { if (r !== except) { r.classList.remove('open', 'dl', 'dr'); r.querySelector('.swi').style.transform = ''; } }); }
+  var st = null, raf = 0;
+  function openRows() { return document.querySelectorAll('.swr.open'); }
+  function setX(row, x, anim) { var el = row.querySelector('.swi'); el.style.transition = anim ? 'transform .28s cubic-bezier(.22,.8,.3,1)' : 'none'; el.style.transform = x ? 'translate3d(' + x + 'px,0,0)' : ''; }
+  function closeAll(except) { openRows().forEach(function (r) { if (r !== except) { r.classList.remove('open'); setX(r, 0, true); } }); }
   document.addEventListener('touchstart', function (e) {
-    var row = e.target.closest && e.target.closest('.swr'); if (!row || e.touches.length !== 1) { if (!(e.target.closest && e.target.closest('.swa'))) closeAll(); st = null; return; }
-    closeAll(row.classList.contains('open') ? row : null);
-    W = parseFloat(getComputedStyle(row).getPropertyValue('--w')) || 144;
-    st = { row: row, x: e.touches[0].clientX, y: e.touches[0].clientY, mode: null, base: row.classList.contains('dl') ? -W : row.classList.contains('dr') ? W : 0 };
+    var t = e.target, row = t.closest && t.closest('.swr');
+    if (!row || e.touches.length !== 1) { if (!(t.closest && t.closest('.swa'))) closeAll(); st = null; return; }
+    closeAll(row);
+    var W = parseFloat(getComputedStyle(row).getPropertyValue('--w')) || 144;
+    st = { row: row, W: W, x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), mode: null, base: row.classList.contains('open') ? W : 0, cur: 0, last: 0, lt: 0 };
+    st.cur = st.base;
   }, { passive: true });
   document.addEventListener('touchmove', function (e) {
     if (!st) return; var dx = e.touches[0].clientX - st.x, dy = e.touches[0].clientY - st.y;
-    if (!st.mode) { if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) st.mode = 'h'; else if (Math.abs(dy) > 10) { st = null; return; } else return; }
-    var x = Math.max(-W, Math.min(W, st.base + dx)), inner = st.row.querySelector('.swi');
-    st.row.classList.toggle('dl', x < 0); st.row.classList.toggle('dr', x > 0);
-    inner.style.transition = 'none'; inner.style.transform = 'translateX(' + x + 'px)'; st.x2 = x;
+    if (!st.mode) { if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) st.mode = 'h'; else if (Math.abs(dy) > 8) { st = null; return; } else return; }
+    var x = st.base + dx; if (x < 0) x = 0; else if (x > st.W) x = st.W + (x - st.W) * 0.25; /* 끝에서는 살짝 뻑뻑하게 */
+    st.vx = (e.touches[0].clientX - (st.last || e.touches[0].clientX)) / Math.max(1, Date.now() - (st.lt || Date.now()));
+    st.last = e.touches[0].clientX; st.lt = Date.now(); st.cur = x;
+    if (!raf) raf = requestAnimationFrame(function () { raf = 0; if (st) setX(st.row, st.cur, false); });
   }, { passive: true });
   document.addEventListener('touchend', function () {
     if (!st || st.mode !== 'h') { st = null; return; }
-    var row = st.row, inner = row.querySelector('.swi'), x = st.x2 || 0; inner.style.transition = '';
-    if (Math.abs(x) > W / 2) { row.classList.add('open'); row.classList.toggle('dl', x < 0); row.classList.toggle('dr', x > 0); inner.style.transform = 'translateX(' + (x < 0 ? -W : W) + 'px)'; }
-    else { row.classList.remove('open', 'dl', 'dr'); inner.style.transform = ''; }
+    var row = st.row, open = st.vx > 0.4 ? true : st.vx < -0.4 ? false : st.cur > st.W / 2;
+    row.classList.toggle('open', open); setX(row, open ? st.W : 0, true);
     S.swiped = Date.now(); st = null;
   }, { passive: true });
   /* 밀고 난 뒤의 클릭, 또는 열린 줄을 누른 클릭은 방 열기가 아니라 닫기 */
