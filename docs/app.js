@@ -629,6 +629,13 @@ function paintRooms() {
     return '<div class="req"><div class="fl">' + av(f.requester_id, 40) + '<div class="tx">' + nm(f.requester_id) + '<small>친구 요청이 왔어요</small></div>' +
       '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button><button class="btn sm sec" data-act="respond" data-id="' + f.id + '" data-v="0">거절</button></div></div>';
   }).join('');
+  if (S.chatSeg === 'dm') {
+    var fids = Object.keys(S.fr.by).filter(function (id) { return S.fr.by[id].status === 'accepted' && S.blocks.indexOf(id) < 0; })
+      .sort(function (x, y) { return nick(x).localeCompare(nick(y), 'ko'); });
+    h += '<div class="shd">친구 ' + fids.length + '명</div>' + (fids.length ? '<div class="frl">' + fids.map(function (id) {
+      return '<button class="frow" data-act="user" data-u="' + esc(id) + '">' + av(id, 40) + '<span class="fn">' + nm(id) + '</span>' + ic('chev') + '</button>';
+    }).join('') + '</div>' : '<div class="fempty">아직 친구가 없어요. 오른쪽 위 버튼으로 친구를 추가해 보세요.</div>') + '<div class="shd">대화</div>';
+  }
   if (S.rooms === null) h += '<div class="empty"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>';
   else if (!rooms.length) h += S.chatSeg === 'dm' ? '<div class="empty">아직 대화가 없어요.<br>오른쪽 위 버튼으로 친구를 추가해 보세요.</div>' : '<div class="empty">참여한 모임이 없어요.<br>게시판에서 글에 "참여하기"를 누르면 여기에 모여요.</div>';
   else h += rooms.map(function (r) {
@@ -759,7 +766,7 @@ function openUser(id, nog) {
     else if (!f) h += '<button class="btn" data-act="freq" data-u="' + esc(id) + '">친구 요청 보내기</button>';
     else if (f.mine) h += '<button class="btn sec" data-act="fcancel" data-id="' + f.id + '" data-u="' + esc(id) + '">친구 요청 취소</button>';
     else h += '<button class="btn" data-act="respond" data-id="' + f.id + '" data-v="1">친구 요청 수락</button>';
-    h += '<button class="btn sec" data-act="repuser" data-u="' + esc(id) + '">신고</button><button class="btn dg" data-act="block" data-u="' + esc(id) + '">차단</button>';
+    h += '<button class="btn sec" data-act="repuser" data-u="' + esc(id) + '">신고</button><button class="btn dg" data-act="block" data-u="' + esc(id) + '">차단하기</button>';
   }
   openSheet(h + '</div>');
 }
@@ -1064,7 +1071,7 @@ var H = {
     var yes = el.dataset.v !== '0'; await rpc('respond_friend', { p_id: Number(el.dataset.id), p_accept: yes });
     closeSheet(); await loadFriends(); await loadRooms(); toast(yes ? '친구가 되었어요. 이제 채팅할 수 있어요.' : '거절했어요.');
   },
-  chatwith: async function (el) { var id = el.dataset.u, dm = await rpc('open_dm', { p_user: id }); S.tab = 'chat'; S.chatSeg = 'dm'; await openRoom(dm, id); },
+  chatwith: async function (el) { var id = el.dataset.u, dm = await rpc('open_dm', { p_user: id }); var hh = lsGet('hb_hide'); if (hh['d:' + dm]) { delete hh['d:' + dm]; lsSet('hb_hide', hh); } S.tab = 'chat'; S.chatSeg = 'dm'; await openRoom(dm, id); },
   room: function (el) { return openRoom(el.dataset.dm, el.dataset.u); },
   msgtap: function (el) { var id = Number(el.dataset.id); S.repMsg = S.repMsg === id ? null : id; paintMsgs(); },
   sendmsg: async function () {
