@@ -118,7 +118,21 @@ async function loadPosts() {
 async function loadRooms() {
   S.rooms = ok(await S.sb.rpc('my_rooms')) || [];
   await loadNames(S.rooms.map(function (r) { return r.other_user; }).concat(S.rooms.map(function (r) { return r.last_sender; })));
-  paintRooms(); paintNav();
+  paintRooms(); paintNav(); catchUpRooms();
+}
+/* 실시간 연결이 끊겨 놓친 새 메시지도 목록을 다시 불러올 때 찾아서 알려 줘요 */
+function ts(x) { var t = x ? new Date(x).getTime() : 0; return isNaN(t) ? 0 : t; }
+function catchUpRooms() {
+  var first = !S.seen; S.seen = S.seen || {};
+  (S.rooms || []).forEach(function (r) {
+    var key = r.room_key, lt = ts(r.last_at), prev = S.seen[key];
+    if (first || prev === undefined && !r.unread) { S.seen[key] = lt; return; }
+    if (lt <= (prev || 0)) return;
+    S.seen[key] = lt;
+    if (!r.unread || !r.last_sender || r.last_sender === S.me.id || isMuted(key)) return;
+    var v = S.view; if (isRoom(v) && document.visibilityState === 'visible' && roomKey(v) === key) return;
+    ping(nick(r.last_sender), String(r.last_body || '').slice(0, 60));
+  });
 }
 async function loadFriends() {
   var rows = ok(await S.sb.from('friendships').select('*')) || [], by = {}, inc = [];
@@ -133,6 +147,10 @@ async function loadFriends() {
 }
 async function loadNotes() {
   S.notes = ok(await S.sb.from('notifications').select('*').order('id', { ascending: false }).limit(30)) || [];
+  var top = S.notes.reduce(function (m, n) { return Math.max(m, n.id); }, 0);
+  if (S.noteSeen == null) S.noteSeen = top;
+  else S.notes.slice().reverse().forEach(function (n) { if (n.id > S.noteSeen && !n.read) { S.noteSeen = n.id; ping(n.body, '', n.kind === 'report' ? 'admin.html' : ''); } });
+  S.noteSeen = Math.max(S.noteSeen, top);
   paintBell();
 }
 async function loadBlocks() {
@@ -239,11 +257,12 @@ function openRoomMenu() {
 async function notifyMsg(n) {
   if (!n || n.hidden || n.sender_id === S.me.id || !n.sender_id) return;
   var v = S.view; if (isRoom(v) && document.visibilityState === 'visible' && ((v.k === 'dm' && n.dm_id === v.dm) || (v.k === 'group' && n.post_id === v.post))) return;
-  if (isMuted(n.post_id ? 'p:' + n.post_id : 'd:' + n.dm_id)) return;
+  var rk = n.post_id ? 'p:' + n.post_id : 'd:' + n.dm_id; S.seen = S.seen || {}; S.seen[rk] = Math.max(S.seen[rk] || 0, ts(n.created_at));
+  if (isMuted(rk)) return;
   await loadNames([n.sender_id]);
   ping(nick(n.sender_id), String(n.body || '').slice(0, 60));
 }
-function notifyNote(n) { if (n && n.user_id === S.me.id && n.body) ping(n.body, '', n.kind === 'report' ? 'admin.html' : ''); }
+function notifyNote(n) { if (n && n.user_id === S.me.id && n.body) { if (n.id <= (S.noteSeen || 0)) return; S.noteSeen = n.id; } if (n && n.user_id === S.me.id && n.body) ping(n.body, '', n.kind === 'report' ? 'admin.html' : ''); }
 function subscribe() {
   if (chan) return;
   var q = function (t) { return { event: '*', schema: 'public', table: t }; };
@@ -263,7 +282,7 @@ function subscribe() {
 }
 function teardown() {
   if (chan && S.sb) { try { S.sb.removeChannel(chan); } catch (e) { /* 무시 */ } }
-  chan = null; S.view = null; S.vs = []; S.cur = null; S.tab = 'board'; S.chatSeg = 'dm'; S.posts = { meal: null, study: null, date: null }; S.rooms = null; S.notes = [];
+  chan = null; S.view = null; S.vs = []; S.cur = null; S.tab = 'board'; S.chatSeg = 'dm'; S.posts = { meal: null, study: null, date: null }; S.rooms = null; S.notes = []; S.seen = null; S.noteSeen = null;
   S.fr = { rows: [], by: {}, incoming: [] }; S.names = {}; S.msgs = null; S.cmts = null; S.members = null; closeSheet();
 }
 
@@ -565,7 +584,7 @@ async function leaveRoom(k, id) {
 function swRow(li, acts, n) {
   return '<div class="swr" style="--w:' + (n * 72) + 'px"><div class="swa">' + acts + '</div><div class="swi">' + li + '</div></div>';
 }
-/* 오른쪽으로 밀면 왼쪽에서 버튼이 나와요. 손가락을 그대로 따라가고, 놓으면 부드럽게 열리거나 닫혀요. */
+/* 오른쪽에서 왼쪽으로 밀면 오른쪽에서 버튼이 나와요. 손가락을 그대로 따라가고, 놓으면 부드럽게 열리거나 닫혀요. */
 (function swipeInit() {
   var st = null, raf = 0;
   function openRows() { return document.querySelectorAll('.swr.open'); }
@@ -576,21 +595,21 @@ function swRow(li, acts, n) {
     if (!row || e.touches.length !== 1) { if (!(t.closest && t.closest('.swa'))) closeAll(); st = null; return; }
     closeAll(row);
     var W = parseFloat(getComputedStyle(row).getPropertyValue('--w')) || 144;
-    st = { row: row, W: W, x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), mode: null, base: row.classList.contains('open') ? W : 0, cur: 0, last: 0, lt: 0 };
+    st = { row: row, W: W, x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), mode: null, base: row.classList.contains('open') ? -W : 0, cur: 0, last: 0, lt: 0 };
     st.cur = st.base;
   }, { passive: true });
   document.addEventListener('touchmove', function (e) {
     if (!st) return; var dx = e.touches[0].clientX - st.x, dy = e.touches[0].clientY - st.y;
     if (!st.mode) { if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) st.mode = 'h'; else if (Math.abs(dy) > 8) { st = null; return; } else return; }
-    var x = st.base + dx; if (x < 0) x = 0; else if (x > st.W) x = st.W + (x - st.W) * 0.25; /* 끝에서는 살짝 뻑뻑하게 */
+    var x = st.base + dx; if (x > 0) x = 0; else if (x < -st.W) x = -st.W + (x + st.W) * 0.25; /* 끝에서는 살짝 뻑뻑하게 */
     st.vx = (e.touches[0].clientX - (st.last || e.touches[0].clientX)) / Math.max(1, Date.now() - (st.lt || Date.now()));
     st.last = e.touches[0].clientX; st.lt = Date.now(); st.cur = x;
     if (!raf) raf = requestAnimationFrame(function () { raf = 0; if (st) setX(st.row, st.cur, false); });
   }, { passive: true });
   document.addEventListener('touchend', function () {
     if (!st || st.mode !== 'h') { st = null; return; }
-    var row = st.row, open = st.vx > 0.4 ? true : st.vx < -0.4 ? false : st.cur > st.W / 2;
-    row.classList.toggle('open', open); setX(row, open ? st.W : 0, true);
+    var row = st.row, open = st.vx < -0.4 ? true : st.vx > 0.4 ? false : st.cur < -st.W / 2;
+    row.classList.toggle('open', open); setX(row, open ? -st.W : 0, true);
     S.swiped = Date.now(); st = null;
   }, { passive: true });
   /* 밀고 난 뒤의 클릭, 또는 열린 줄을 누른 클릭은 방 열기가 아니라 닫기 */
@@ -1095,8 +1114,17 @@ document.addEventListener('keydown', function (e) {
   var map = { pw: 'auth', pw2: 'auth', em: 'auth', vc: 'verify', ci: 'addcmt', mi: 'sendmsg', fq: 'fdo' }, a = map[e.target.id];
   if (a) { e.preventDefault(); var b = document.querySelector('[data-act="' + a + '"]'); if (b) b.click(); }
 });
+/* 폰이 잠들었다 깨어나면 실시간 연결이 끊겨 있을 수 있어서, 다시 연결하고 놓친 것을 확인해요 */
+function resume() {
+  if (!S.me || document.visibilityState !== 'visible') return;
+  if (chan && S.sb) { try { S.sb.removeChannel(chan); } catch (e) { /* 무시 */ } }
+  chan = null; subscribe(); loadRooms().catch(function () { /* 무시 */ }); loadNotes().catch(function () { /* 무시 */ });
+}
+window.addEventListener('online', resume); window.addEventListener('pageshow', resume); window.addEventListener('focus', resume);
+setInterval(function () { if (S.me && document.visibilityState === 'visible' && navigator.onLine !== false) { loadRooms().catch(function () { /* 무시 */ }); loadNotes().catch(function () { /* 무시 */ }); } }, 15000);
 document.addEventListener('visibilitychange', function () {
   if (document.visibilityState !== 'visible' || !S.me) return;
+  resume();
   if (isRoom(S.view)) { loadMsgs().then(markRead).catch(function () { /* 무시 */ }); loadPeer().catch(function () { /* 무시 */ }); } else later('rooms', loadRooms, 50);
 });
 
