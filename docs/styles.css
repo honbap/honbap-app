@@ -467,3 +467,6 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 .spin { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2.4s; } }
+.banner b { margin-right: 8px; }
+.banner span { font-weight: 500; opacity: .92; }
+.banner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

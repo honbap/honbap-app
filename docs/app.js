@@ -210,15 +210,18 @@ async function hardLogout(message, isErr) {
 var chan = null;
 /* 알림: 앱을 보고 있으면 화면 위 알림, 다른 탭/백그라운드면 브라우저 알림 */
 function notifyOff() { try { return localStorage.getItem('hb_notify_off') === '1'; } catch (e) { return false; } }
-function banner(text, href) {
+function banner(title, body, href) {
   var el = $('#banner'); if (!el) { el = document.createElement('button'); el.id = 'banner'; el.className = 'banner'; el.setAttribute('data-act', 'banner'); el.setAttribute('role', 'status'); var t = $('#toast'); t.parentNode.insertBefore(el, t); }
-  el.textContent = text; el.dataset.href = href || ''; el.classList.add('on');
+  el.textContent = ''; var b = document.createElement('b'); b.textContent = title; el.appendChild(b);
+  if (body) { var sp = document.createElement('span'); sp.textContent = body; el.appendChild(sp); }
+  el.dataset.href = href || '';
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); /* 연달아 와도 매번 새로 보여요 */
   clearTimeout(banner.h); banner.h = setTimeout(function () { el.classList.remove('on'); }, 4500);
 }
 function ping(title, body, href) {
   if (notifyOff()) return;
-  if (document.visibilityState === 'visible') { banner(title + (body ? ' ' + body : ''), href); return; }
-  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '', icon: 'icon-192.png', tag: 'honbap' }); } catch (e) { /* 무시 */ }
+  if (document.visibilityState === 'visible') { banner(title, body, href); return; }
+  try { if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '', icon: 'icon-192.png', tag: 'honbap-' + Date.now(), renotify: true }); } catch (e) { /* 무시 */ }
 }
 /* 채팅방별 알림 끄기·목록 숨기기: 이 기기에만 저장돼요 */
 function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } }
@@ -238,8 +241,7 @@ async function notifyMsg(n) {
   var v = S.view; if (isRoom(v) && document.visibilityState === 'visible' && ((v.k === 'dm' && n.dm_id === v.dm) || (v.k === 'group' && n.post_id === v.post))) return;
   if (isMuted(n.post_id ? 'p:' + n.post_id : 'd:' + n.dm_id)) return;
   await loadNames([n.sender_id]);
-  var where = n.post_id ? ((S.rooms || []).filter(function (r) { return r.post_id === n.post_id; })[0] || {}).title : '';
-  ping((where ? '[' + where + '] ' : '') + nick(n.sender_id) + ':', String(n.body || '').slice(0, 60));
+  ping(nick(n.sender_id), String(n.body || '').slice(0, 60));
 }
 function notifyNote(n) { if (n && n.user_id === S.me.id && n.body) ping(n.body, '', n.kind === 'report' ? 'admin.html' : ''); }
 function subscribe() {
