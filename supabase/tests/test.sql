@@ -353,4 +353,19 @@ grant select on p3 to authenticated;
 select t.ok((select kind::text from post_feed where id = (select id from p3)) = 'date', '소개팅 글을 올릴 수 있음');
 select delete_post((select id from p3));
 reset role;
+\echo === 채팅 명령어(@성별, @주사위)
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+create temp table p4 as select create_post('meal', '명령어 테스트', '내용', null, null, 4) as id;
+grant select on p4 to authenticated;
+select send_special('dice', null, (select id from p4));
+select send_special('gender', null, (select id from p4));
+select t.ok((select count(*) from messages where post_id = (select id from p4) and special = 'dice' and body ~ '^🎲 주사위 [1-6]$') = 1, '@주사위는 1~6 숫자 메시지');
+select t.ok((select count(*) from messages where post_id = (select id from p4) and special = 'gender' and body ~ '^🙋 성별: (남성|여성)$') = 1, '@성별은 내 성별 메시지');
+select t.fails($$select send_special('cheat', null, (select id from p4))$$, 'BAD_MESSAGE');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text, false);
+set role authenticated;
+select t.fails($$select send_special('dice', null, (select id from p4))$$, 'ROOM_NOT_FOUND');
+reset role;
 \echo ALL TESTS PASSED

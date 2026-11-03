@@ -487,3 +487,7 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 .frow > .ic { width: 18px; height: 18px; color: var(--ink3); }
 .fempty { padding: 14px 16px; color: var(--ink2); font-size: 14px; }
 .seg3 { grid-template-columns: repeat(3, 1fr); }
+
+.bub.sp { font-weight: 700; letter-spacing: .2px; }
+.mrow:not(.me) .bub.sp { background: #FFF3C4; color: #5a4400; border: 1px solid #F1D77A; }
+.mrow.me .bub.sp { background: var(--accent); }

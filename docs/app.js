@@ -174,7 +174,7 @@ async function loadCmts() {
 }
 async function loadMsgs() {
   var v = S.view; if (!isRoom(v)) return;
-  var q = S.sb.from('messages').select('id,sender_id,body,created_at,hidden');
+  var q = S.sb.from('messages').select('id,sender_id,body,created_at,hidden,special');
   q = v.k === 'dm' ? q.eq('dm_id', v.dm) : q.eq('post_id', v.post);
   var rows = ok(await q.order('id', { ascending: false }).limit(100)) || [];
   await loadNames(rows.map(function (r) { return r.sender_id; }));
@@ -544,7 +544,7 @@ function vRoom() {
   if (v.k === 'dm') head = '<button class="who" data-act="user" data-u="' + esc(v.other) + '">' + av(v.other, 34) + '<b>' + nm(v.other) + '</b></button>';
   else head = '<button class="who" data-act="members">' + gav(v.post, v.title, 34) + '<span class="wt"><b>' + esc(v.title) + '</b><small id="mcount"></small></span></button>';
   return '<div class="page"><div class="bar">' + ib('back', 'back', '뒤로') + head + ib('roommenu', 'more', '채팅방 메뉴') + '</div>' +
-    '<div class="chat"><p class="safe">처음 만나는 사람과는 공개된 장소에서 만나고, 개인정보는 알려 주지 마세요. 불편하면 메시지를 눌러 신고할 수 있어요.</p><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><input type="text" id="mi" maxlength="500" placeholder="메시지 입력" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
+    '<div class="chat"><p class="safe">처음 만나는 사람과는 공개된 장소에서 만나고, 개인정보는 알려 주지 마세요. 불편하면 메시지를 눌러 신고할 수 있어요.</p><div class="msgs" id="msgs" aria-live="polite"></div><div class="cin"><input type="text" id="mi" maxlength="500" placeholder="메시지 입력 (@성별 @주사위)" autocomplete="off" aria-label="메시지"><button data-act="sendmsg" aria-label="보내기">' + ic('send') + '</button></div></div></div>';
 }
 
 /* 부분 갱신 (입력 중인 칸을 건드리지 않아요) */
@@ -557,7 +557,7 @@ function postCard(p, hl) {
     var pct = Math.min(100, Math.round((p.member_count || 0) / p.capacity * 100)), mine = S.myPosts[p.id], full = (p.member_count || 0) >= p.capacity;
     var btn = mine ? '<button class="jbtn go" data-act="gochat" data-id="' + p.id + '" data-title="' + esc(p.title) + '">채팅 열기 ›</button>' :
       (p.closed || full ? '<button class="jbtn" disabled>' + (p.closed ? '마감' : '정원 마감') + '</button>' : '<button class="jbtn" data-act="quickjoin" data-id="' + p.id + '">참여하기 ›</button>');
-    return '<div class="post" role="button" tabindex="0" data-act="post" data-id="' + p.id + '"><div class="ph2">' + av(p.author_id, 34) + '<span class="who2"><b>' + nm(p.author_id) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</div>' +
+    return '<div class="post" role="button" tabindex="0" data-act="post" data-id="' + p.id + '"><div class="ph2">' + av(p.author_id, 34) + '<span class="who2"><b>' + nm(p.author_id) + '</b><small>' + ago(p.created_at) + '</small></span>' + capChip(p) + '</div>' +
       '<div class="pt">' + (hl ? hlText(p.title, hl) : esc(p.title)) + '</div><div class="pp">' + (hl ? hlText(p.body, hl) : esc(p.body)) + '</div>' +
       '<div class="pfoot">' + (p.starts_at ? tbox(p, false) : '<span class="notm">모이는 시간 미정</span>') + btn + '</div><div class="pbar" aria-hidden="true"><i style="width:' + pct + '%"></i></div></div>';
 }
@@ -665,7 +665,7 @@ function paintBell() {
 function cmHtml(c, reply) {
   var mine = c.author_id === S.me.id, n = 0, on = false;
   S.likes.forEach(function (l) { if (l.comment_id === c.id) { n++; if (l.user_id === S.me.id) on = true; } });
-  return '<div class="cm' + (reply ? ' re' : '') + '">' + av(c.author_id, reply ? 28 : 32, true) + '<div class="tx"><b>' + nm(c.author_id) + (gl(c.author_id) ? ' · ' + gl(c.author_id) : '') + '</b><div class="bd">' + esc(c.body) + '</div>' +
+  return '<div class="cm' + (reply ? ' re' : '') + '">' + av(c.author_id, reply ? 28 : 32, true) + '<div class="tx"><b>' + nm(c.author_id) + '</b><div class="bd">' + esc(c.body) + '</div>' +
     '<div class="ft"><small>' + ago(c.created_at) + '</small>' +
     '<button class="lk' + (on ? ' on' : '') + '" data-act="like" data-id="' + c.id + '" aria-pressed="' + on + '" aria-label="좋아요 ' + n + '개">' + ic('heart') + (n || '') + '</button>' +
     (reply ? '' : '<button class="linkbtn" data-act="reply" data-id="' + c.id + '">답글</button>') +
@@ -692,7 +692,7 @@ function paintPost() {
   var btn = joined ? '<button class="jbtn big" data-act="gopost">' + ic('chat') + ' 단체 채팅 열기 ›</button>' :
     (p.closed || full ? '<button class="jbtn big" disabled>' + (p.closed ? '모집 마감' : '정원 마감') + '</button>' : '<button class="jbtn big" data-act="join">참여하기 ›</button>');
   var tline = p.starts_at ? '<div class="jt">' + ic('clock') + '<span>' + tText(p) + '</span></div>' : '';
-  var h = '<div class="dcard"><div class="ph">' + av(p.author_id, 48, true) + '<div class="nmb"><b>' + nm(p.author_id) + (gl(p.author_id) ? ' · ' + gl(p.author_id) : '') + '</b><small>' + ago(p.created_at) + '</small></div>' +
+  var h = '<div class="dcard"><div class="ph">' + av(p.author_id, 48, true) + '<div class="nmb"><b>' + nm(p.author_id) + '</b><small>' + ago(p.created_at) + '</small></div>' +
     '<div class="chips"><button class="chip' + (st.liked ? ' on' : '') + '" data-act="plike" aria-pressed="' + st.liked + '" aria-label="좋아요 ' + st.likes + '개">' + ic('heart') + st.likes + '</button><span class="chip" aria-label="조회 ' + st.views + '회">' + ic('eye') + st.views + '</span></div></div>' +
     '<h2 class="dt">' + esc(p.title) + '</h2><div class="pd-body">' + esc(p.body) + '</div>' +
     '<div class="jbox' + (p.closed ? ' closed' : '') + '"><div class="jinfo"><div class="jn">' + ic('group') + '<b>참여 ' + n + '/' + p.capacity + '명</b>' + (p.closed ? '<span class="capc off">모집 마감</span>' : '') + '</div>' + tline + '</div>' + btn + '</div>' +
@@ -738,10 +738,10 @@ function paintMsgs(stick) {
       meta = (gn > 0 ? '<span class="rd" aria-label="아직 안 읽은 사람 ' + gn + '명">' + gn + '</span>' : '') + (lastOfMin ? '<span>' + hm(m.created_at) + '</span>' : '');
     }
     meta = meta ? '<div class="mmeta">' + meta + '</div>' : '';
-    if (mine) h += '<div class="mrow me' + (first ? ' first' : '') + '"><div class="mline">' + meta + '<div class="bub">' + esc(m.body) + '</div></div></div>';
+    if (mine) h += '<div class="mrow me' + (first ? ' first' : '') + '"><div class="mline">' + meta + '<div class="bub' + (m.special ? ' sp' : '') + '">' + esc(m.body) + '</div></div></div>';
     else h += '<div class="mrow other' + (first ? ' first' : '') + '">' + (first ? av(sid, 36, true) : '<span class="avsp"></span>') +
       '<div class="mcol">' + (first ? '<span class="nm">' + nm(sid) + '</span>' : '') +
-      '<div class="mline"><button class="bub" data-act="msgtap" data-id="' + m.id + '">' + esc(m.body) + '</button>' + meta + '</div>' +
+      '<div class="mline"><button class="bub' + (m.special ? ' sp' : '') + '" data-act="msgtap" data-id="' + m.id + '">' + esc(m.body) + '</button>' + meta + '</div>' +
       (S.repMsg === m.id ? '<button class="mrep" data-act="repmsg" data-id="' + m.id + '">신고</button>' : '') + '</div></div>';
   });
   el.innerHTML = h;
@@ -762,7 +762,7 @@ function friendBtn(id) {
   return '<button class="btn sm" data-act="respond" data-id="' + f.id + '" data-v="1">수락</button>';
 }
 function openUser(id, nog) {
-  var f = S.fr.by[id], me = id === S.me.id, h = '<div class="profile">' + av(id, 52) + '<div><b>' + nm(id) + '</b>' + (!nog && gl(id) ? '<p>' + (gl(id) === '남' ? '남자' : '여자') + '</p>' : '') + '</div></div><div class="stack">';
+  var f = S.fr.by[id], me = id === S.me.id, h = '<div class="profile">' + av(id, 52) + '<div><b>' + nm(id) + '</b>' + '</div></div><div class="stack">';
   if (!me) {
     if (f && f.status === 'accepted') h += '<button class="btn" data-act="chatwith" data-u="' + esc(id) + '">채팅하기</button>';
     else if (!f) h += '<button class="btn" data-act="freq" data-u="' + esc(id) + '">친구 요청 보내기</button>';
@@ -1079,7 +1079,11 @@ var H = {
   sendmsg: async function () {
     var i = $('#mi'), b = (i.value || '').trim(), v = S.view; if (!b) return;
     i.value = ''; i.focus();
-    try { if (v.k === 'dm') await rpc('send_message', { p_dm_id: v.dm, p_body: b }); else await rpc('send_group_message', { p_post: v.post, p_body: b }); } catch (e) { i.value = b; throw e; }
+    var cmd = { '@성별': 'gender', '@주사위': 'dice' }[b.replace(/\s+/g, '')];
+    try {
+      if (cmd) await rpc('send_special', v.k === 'dm' ? { p_kind: cmd, p_dm_id: v.dm } : { p_kind: cmd, p_post: v.post });
+      else if (v.k === 'dm') await rpc('send_message', { p_dm_id: v.dm, p_body: b }); else await rpc('send_group_message', { p_post: v.post, p_body: b });
+    } catch (e) { i.value = b; throw e; }
     await loadMsgs(); var m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight;
   },
   allownotify: async function () {
