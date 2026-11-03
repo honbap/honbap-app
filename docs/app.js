@@ -355,14 +355,14 @@ function rlEdit() {
   openSheet('<h3>메뉴 수정</h3><div id="rle">' + r.menus.map(function (m, i) {
     return '<div class="fl"><span style="font-size:22px">' + esc(m[0]) + '</span><div class="tx">' + esc(m[1]) + '</div><button class="btn sm sec" data-act="rldel" data-i="' + i + '"' + (r.menus.length <= 2 ? ' disabled' : '') + '>삭제</button></div>';
   }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rle1" maxlength="2" value="🍽️" style="max-width:64px;text-align:center" aria-label="이모지"><input type="text" id="rle2" maxlength="8" placeholder="메뉴 이름" aria-label="메뉴 이름" autocomplete="off"><button class="btn" data-act="rladd">추가</button></div>' +
-    '<p class="mnote">메뉴는 2개 이상 12개 이하로 둘 수 있어요. 이 기기에만 저장돼요.</p><p class="mnote ok2" id="rlhint">' + (S.rlAdded ? '추가했어요! 다 넣었으면 아래 <b>완료</b>를 눌러 주세요.' : '') + '</p><button class="btn" data-act="rldone" style="margin-top:8px">완료</button>');
+    '<p class="mnote">메뉴는 2개 이상 12개 이하로 둘 수 있어요. 이 기기에만 저장돼요.</p><button class="btn" data-act="rldone" style="margin-top:8px">완료</button>');
 }
 function rlPeople() {
   var r = rlLoad();
   openSheet('<h3>참여자 추가</h3><div id="rlpe">' + r.people.map(function (n, i) {
     return '<div class="fl">' + av(n, 34) + '<div class="tx">' + esc(n) + '</div><button class="btn sm sec" data-act="rlpdel" data-i="' + i + '"' + (r.people.length <= 1 ? ' disabled' : '') + '>삭제</button></div>';
   }).join('') + '</div><div class="inline" style="margin-top:10px"><input type="text" id="rlpn" maxlength="8" placeholder="이름 (최대 8자)" aria-label="이름" autocomplete="off"><button class="btn" data-act="rlpadd">추가</button></div>' +
-    '<p class="mnote">최대 10명까지 넣을 수 있어요. 이 기기에만 저장돼요.</p><p class="mnote ok2" id="rlhint">' + (S.rlAdded ? '추가했어요! 다 넣었으면 아래 <b>완료</b>를 눌러 주세요.' : '') + '</p><button class="btn" data-act="rldone" style="margin-top:8px">완료</button>');
+    '<p class="mnote">최대 10명까지 넣을 수 있어요. 이 기기에만 저장돼요.</p><button class="btn" data-act="rldone" style="margin-top:8px">완료</button>');
 }
 function vMain() {
   var body;
