@@ -994,7 +994,7 @@ var H = {
     await rpc('block_user', { p_user: id }); closeSheet(); await Promise.all([loadBlocks(), loadFriends()]);
     S.posts = { meal: null, study: null, date: null }; S.view = null; S.vs = []; S.cur = null; S.msgs = null; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단했어요.');
   },
-  unblock: async function (el) { await rpc('unblock_user', { p_user: el.dataset.u }); await loadBlocks(); S.posts = { meal: null, study: null, date: null }; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단을 해제했어요.'); },
+  unblock: async function (el) { await rpc('unblock_user', { p_user: el.dataset.u }); await Promise.all([loadBlocks(), loadFriends()]); S.posts = { meal: null, study: null, date: null }; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단을 해제했어요.'); },
   fsearch: function () { openSearch(); setTimeout(function () { var q = $('#fq'); if (q) q.focus(); }, 50); },
   fdo: function () { return doSearch(); },
   freq: async function (el) { await rpc('request_friend', { p_target: el.dataset.u }); toast('친구 요청을 보냈어요.'); await loadFriends(); await loadRooms(); if ($('#fres')) await doSearch(); else closeSheet(); },

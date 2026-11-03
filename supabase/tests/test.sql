@@ -282,10 +282,11 @@ reset role; update public.profiles set school_id = 1 where id = :'dave';
 select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text, false);
 set role authenticated;
 select block_user(:'carol');
-select t.ok((select count(*) from friendships) = 0, '친구 관계가 끊김');
+select t.ok((select count(*) from friendships) = 1, '차단해도 친구 관계는 남아 있음');
 select t.ok((select count(*) from my_rooms() where kind = 'dm') = 0, '채팅방이 목록에서 사라짐');
 select t.fails(format($$select request_friend('%s')$$, :'carol'), 'BLOCKED');
 select unblock_user(:'carol');
+select t.ok((select count(*) from my_rooms() where kind = 'dm') = 1, '차단을 풀면 친구 채팅방이 그대로 돌아옴');
 reset role;
 
 \echo === 신고 · 운영자 조치
