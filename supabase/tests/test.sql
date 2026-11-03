@@ -307,6 +307,9 @@ select t.ok((select snapshot from reports where target_comment is not null) like
 select admin_resolve_report((select id from reports where target_comment is not null), 'suspend', '광고 반복');
 reset role;
 select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated; select report_content('기타', '알림 확인', :'bob', null, null, null); reset role;
+select t.ok((select count(*) from public.notifications where user_id = :'dave' and kind = 'report') = 1, '새 신고가 들어오면 운영자에게 알림');
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
 set role authenticated;
 select t.ok((select count(*) from comments) = 0, '숨김 처리된 댓글은 보이지 않음');
 reset role;

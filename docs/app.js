@@ -210,9 +210,14 @@ async function hardLogout(message, isErr) {
 var chan = null;
 /* 알림: 앱을 보고 있으면 화면 위 알림, 다른 탭/백그라운드면 브라우저 알림 */
 function notifyOff() { try { return localStorage.getItem('hb_notify_off') === '1'; } catch (e) { return false; } }
-function ping(title, body) {
+function banner(text, href) {
+  var el = $('#banner'); if (!el) { el = document.createElement('button'); el.id = 'banner'; el.className = 'banner'; el.setAttribute('data-act', 'banner'); el.setAttribute('role', 'status'); var t = $('#toast'); t.parentNode.insertBefore(el, t); }
+  el.textContent = text; el.dataset.href = href || ''; el.classList.add('on');
+  clearTimeout(banner.h); banner.h = setTimeout(function () { el.classList.remove('on'); }, 4500);
+}
+function ping(title, body, href) {
   if (notifyOff()) return;
-  if (document.visibilityState === 'visible') { toast(title + (body ? ' ' + body : '')); return; }
+  if (document.visibilityState === 'visible') { banner(title + (body ? ' ' + body : ''), href); return; }
   try { if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body: body || '', icon: 'icon-192.png', tag: 'honbap' }); } catch (e) { /* 무시 */ }
 }
 async function notifyMsg(n) {
@@ -222,7 +227,7 @@ async function notifyMsg(n) {
   var where = n.post_id ? ((S.rooms || []).filter(function (r) { return r.post_id === n.post_id; })[0] || {}).title : '';
   ping((where ? '[' + where + '] ' : '') + nick(n.sender_id) + ':', String(n.body || '').slice(0, 60));
 }
-function notifyNote(n) { if (n && n.user_id === S.me.id && n.body) ping(n.body, ''); }
+function notifyNote(n) { if (n && n.user_id === S.me.id && n.body) ping(n.body, '', n.kind === 'report' ? 'admin.html' : ''); }
 function subscribe() {
   if (chan) return;
   var q = function (t) { return { event: '*', schema: 'public', table: t }; };
@@ -296,7 +301,7 @@ function rlWheel(r) {
 function vWheel() {
   var r = rlLoad();
   var ppl = r.people.map(function (n, i) {
-    return '<div class="rlp' + (r.bet === i ? ' lose' : '') + '" data-i="' + i + '">' + av(n, 44) + '<small>' + esc(n) + '</small><span class="die" id="die' + i + '">' + (r.dice && r.dice[i] ? DIE[r.dice[i] - 1] : '') + '</span></div>';
+    return '<div class="rlp' + (r.bet === i ? ' lose' : '') + '" data-i="' + i + '">' + av(n, 44) + '<small>' + esc(n) + '</small></div>';
   }).join('');
   return '<div class="top"><h1>함께 정하기</h1></div><main class="rlpage">' +
     '<section class="mcard"><div class="mh"><span class="mi">' + ic('wheel') + '</span><div class="mt"><b>점심 추천 돌림판</b><small>뭐 먹을지 모르겠다면 돌려 보세요</small></div></div>' +
@@ -305,8 +310,7 @@ function vWheel() {
     '<section class="mcard"><div class="mh"><span class="mi">' + ic('group') + '</span><div class="mt"><b>밥 내기</b><small>걸린 사람이 밥 쏘기! 🍚</small></div></div>' +
     '<div class="rlppl" id="rlppl">' + ppl + '<button class="rladd" data-act="rlpeople" aria-label="참여자 추가">+</button></div>' +
     '<p class="rlres" id="rlbet" aria-live="polite">' + (r.bet != null ? '😭 <b>' + esc(r.people[r.bet]) + '</b> 님이 밥 쏩니다!' : '') + '</p>' +
-    '<div class="row"><button class="btn sec" data-act="rlpeople">참여자 추가</button><button class="btn" data-act="rlbet">내기 시작</button></div>' +
-    '<div class="row" style="margin-top:8px"><button class="btn sec" data-act="rldice">🎲 주사위 내기 <small style="font-weight:500">(가장 낮은 눈이 쏘기)</small></button></div></section></main>';
+    '<div class="row"><button class="btn sec" data-act="rlpeople">참여자 추가</button><button class="btn" data-act="rlbet">내기 시작</button></div></section></main>';
 }
 function rlResHtml(r) {
   return r.res == null ? '' : '🎉 오늘은 <b>' + esc(r.menus[r.res][0] + ' ' + r.menus[r.res][1]) + '</b>!<br><button class="btn sm sec" data-act="rlpost">이 메뉴로 같이 먹을 사람 구하기</button>';
@@ -325,38 +329,11 @@ function rlSpin() {
     var b = $('[data-act="rlspin"]'); if (b) b.disabled = false;
   }, 4100);
 }
-var DIE = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-function rlDice() {
-  var r = rlLoad(); if (r.spinning) return;
-  if (r.people.length < 2) { toast('참여자를 2명 이상 넣어 주세요.', true); return; }
-  r.spinning = true; r.bet = null; r.dice = null;
-  var n = r.people.length, bt = $('#rlbet'), els = document.querySelectorAll('.rlp');
-  for (var j = 0; j < els.length; j++) els[j].classList.remove('lose', 'hi');
-  var cand = r.people.map(function (_, i) { return i; }), vals = new Array(n).fill(0), round = 0;
-  function roll() {
-    round++; var k = 0;
-    if (bt) bt.textContent = round === 1 ? '주사위를 굴려요… 🎲' : '동점! 걸린 사람끼리 다시 굴려요 🎲';
-    var iv = setInterval(function () {
-      cand.forEach(function (i) { var d = $('#die' + i); if (d) d.textContent = DIE[rlRand(6)]; });
-      if (++k < 14) return;
-      clearInterval(iv);
-      cand.forEach(function (i) { vals[i] = 1 + rlRand(6); var d = $('#die' + i); if (d) d.textContent = DIE[vals[i] - 1]; });
-      var low = Math.min.apply(null, cand.map(function (i) { return vals[i]; }));
-      cand = cand.filter(function (i) { return vals[i] === low; });
-      r.dice = vals.slice();
-      if (cand.length > 1 && round < 5) { setTimeout(roll, 900); return; }
-      var lose = cand[rlRand(cand.length)]; r.spinning = false; r.bet = lose;
-      var e2 = document.querySelectorAll('.rlp'); for (var q = 0; q < e2.length; q++) e2[q].classList.toggle('lose', q === lose);
-      var b2 = $('#rlbet'); if (b2) b2.innerHTML = '😭 <b>' + esc(r.people[lose]) + '</b> 님이 밥 쏩니다!';
-    }, 70);
-  }
-  roll();
-}
 function rlBet() {
   var r = rlLoad(); if (r.spinning) return;
   if (r.people.length < 2) { toast('참여자를 2명 이상 넣어 주세요.', true); return; }
   var final = rlRand(r.people.length), steps = 20 + rlRand(r.people.length), k = 0, total = steps * r.people.length + ((final - (steps * r.people.length) % r.people.length) + r.people.length) % r.people.length;
-  r.spinning = true; r.bet = null; r.dice = null; var bt = $('#rlbet'); if (bt) bt.textContent = '두근두근…'; document.querySelectorAll('.die').forEach(function (d) { d.textContent = ''; });
+  r.spinning = true; r.bet = null; var bt = $('#rlbet'); if (bt) bt.textContent = '두근두근…';
   (function tick() {
     var els = document.querySelectorAll('.rlp');
     for (var j = 0; j < els.length; j++) els[j].classList.toggle('hi', j === k % r.people.length);
@@ -472,7 +449,20 @@ function vVerify() {
     '<p class="err" id="aerr" role="alert"></p><button class="btn" data-act="verify">인증하고 계속하기</button>' +
     '<button class="btn sec" data-act="resend">인증번호 다시 받기</button><button class="link" data-act="cancelverify">처음으로</button></div>';
 }
+function vReset() {
+  var r = S.reset;
+  if (r.step === 'email') return '<div class="auth"><div><div class="logo">비밀번호 찾기</div><p>가입한 이메일로 인증번호를 보내 드려요.</p></div>' +
+    '<label class="f">이메일<input type="text" id="em" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="example@email.com" value="' + esc(S.email) + '"></label>' +
+    '<p class="err" id="aerr" role="alert"></p><button class="btn" data-act="resetsend">인증번호 받기</button><button class="link" data-act="resetcancel">로그인으로 돌아가기</button></div>';
+  return '<div class="auth"><div><div class="logo">새 비밀번호</div><p><b>' + esc(r.email) + '</b> 로 인증번호를 보냈어요.<br>메일의 숫자와 새 비밀번호를 입력해 주세요. 메일이 안 보이면 스팸함도 확인해 주세요.</p></div>' +
+    '<label class="f">인증번호<input type="text" id="vc" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="숫자 6~8자리"></label>' +
+    '<label class="f">새 비밀번호 (8자 이상, 영문+숫자)<input type="password" id="pw" autocomplete="new-password"></label>' +
+    '<label class="f">새 비밀번호 확인<input type="password" id="pw2" autocomplete="new-password"></label>' +
+    '<p class="err" id="aerr" role="alert"></p><button class="btn" data-act="resetdone">비밀번호 바꾸기</button>' +
+    '<button class="btn sec" data-act="resetresend">인증번호 다시 받기</button><button class="link" data-act="resetcancel">로그인으로 돌아가기</button></div>';
+}
 function vAuth() {
+  if (S.reset) return vReset();
   if (S.verify) return vVerify();
   var su = S.authMode === 'signup';
   return '<div class="auth"><div><div class="logo">밥친구</div><p>같은 학교 혼밥러들의 커뮤니티</p></div>' +
@@ -482,7 +472,7 @@ function vAuth() {
     (su ? '<label class="f">비밀번호 확인<input type="password" id="pw2" autocomplete="new-password"></label>' : '') +
     '<p class="err" id="aerr" role="alert"></p><button class="btn" data-act="auth">' + (su ? '인증번호 받기' : '로그인') + '</button>' +
     (CFG.GOOGLE_LOGIN ? '<div class="or">또는</div><button class="btn gg" data-act="google">Google로 계속하기</button>' : '') +
-    '<p class="sub">' + (su ? '가입하면 메일로 인증번호가 가요. 인증 뒤에 닉네임과 학교를 정해요.' : '처음이면 "계정 만들기"를 눌러 주세요.') + '</p>' + legalLinks() + '</div>';
+    '<p class="sub">' + (su ? '가입하면 메일로 인증번호가 가요. 인증 뒤에 닉네임과 학교를 정해요.' : '처음이면 "계정 만들기"를 눌러 주세요.') + '</p>' + (su ? '' : '<button class="link" data-act="resetstart">비밀번호를 잊었어요</button>') + legalLinks() + '</div>';
 }
 function vSetup() {
   var opts = '<option value="">학교를 골라 주세요</option>' + S.schools.map(function (s) { return '<option value="' + s.id + '">' + esc(s.name) + '</option>'; }).join('');
@@ -760,7 +750,6 @@ var H = {
   close: function () { closeSheet(); },
   rlspin: function () { rlSpin(); },
   rlbet: function () { rlBet(); },
-  rldice: function () { rlDice(); },
   rledit: function () { rlEdit(); },
   rlpeople: function () { rlPeople(); },
   rldone: function () { closeSheet(); render(); },
@@ -836,7 +825,35 @@ var H = {
     var r = await S.sb.auth.resend({ type: 'signup', email: S.verify.email }); if (r.error) throw r.error;
     S.resendAt = Date.now() + 30000; toast('인증번호를 다시 보냈어요.');
   },
+  resetstart: function () { S.email = ($('#em') || {}).value || S.email; S.reset = { step: 'email' }; render(); },
+  resetcancel: function () { S.reset = null; render(); },
+  resetsend: async function () {
+    var em = (($('#em') || {}).value || '').trim(), er = $('#aerr'); S.email = em; er.textContent = '';
+    try {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) throw new Error('BAD_EMAIL');
+      var r = await S.sb.auth.resetPasswordForEmail(em); if (r.error) throw r.error;
+      S.resendAt = Date.now() + 30000; S.reset = { step: 'code', email: em }; render();
+    } catch (e) { er.textContent = msg(e); }
+  },
+  resetresend: async function () {
+    if (Date.now() < S.resendAt) { toast('잠시 후에 다시 받을 수 있어요.', true); return; }
+    var r = await S.sb.auth.resetPasswordForEmail(S.reset.email); if (r.error) throw r.error;
+    S.resendAt = Date.now() + 30000; toast('인증번호를 다시 보냈어요.');
+  },
+  resetdone: async function () {
+    var er = $('#aerr'), code = (($('#vc') || {}).value || '').replace(/\s/g, ''), pw = ($('#pw') || {}).value || '', pw2 = ($('#pw2') || {}).value || ''; er.textContent = '';
+    try {
+      if (!/^\d{6,8}$/.test(code)) { er.textContent = '메일에 적힌 숫자 6~8자리를 입력해 주세요.'; return; }
+      if (!pwOk(pw)) throw new Error('BAD_PASSWORD');
+      if (pw !== pw2) throw new Error('PW_MISMATCH');
+      var r = await S.sb.auth.verifyOtp({ email: S.reset.email, token: code, type: 'recovery' }); if (r.error) throw r.error;
+      var u = await S.sb.auth.updateUser({ password: pw }); if (u.error) throw u.error;
+      var ses = r.data && r.data.session ? r.data.session : (await S.sb.auth.getSession()).data.session;
+      S.reset = null; toast('비밀번호를 바꿨어요.'); await startSession(ses);
+    } catch (e) { er.textContent = msg(e); }
+  },
   cancelverify: function () { S.verify = null; render(); },
+  banner: function (el) { var h = el.dataset.href; el.classList.remove('on'); if (h) location.href = h; },
   google: async function () { var r = await S.sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } }); if (r.error) throw r.error; },
   setup: async function () {
     var er = $('#aerr'); er.textContent = '';
@@ -1017,7 +1034,7 @@ async function boot() {
   render();
   S.sb.auth.onAuthStateChange(function (ev, session) {
     if (ev === 'SIGNED_OUT') later('auth', function () { startSession(null); }, 0);
-    else if (ev === 'SIGNED_IN' && session) later('auth', function () { startSession(session); }, 0);
+    else if (ev === 'SIGNED_IN' && session && !S.reset) later('auth', function () { startSession(session); }, 0);
   });
   var r = await S.sb.auth.getSession();
   await startSession(r.data && r.data.session);
