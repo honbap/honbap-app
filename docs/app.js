@@ -549,6 +549,53 @@ function paintList() {
   if (!rows.length) { el.innerHTML = searching ? '<div class="empty">검색 결과가 없어요.</div>' : '<div class="empty">아직 글이 없어요.<br>첫 글을 남겨 보세요!</div>'; return; }
   el.innerHTML = rows.map(function (p) { return postCard(p); }).join('');
 }
+async function leaveRoom(k, id) {
+  if (k === 'dm') {
+    if (!confirm('채팅방을 목록에서 지울까요? 새 메시지가 오면 다시 나타나요.')) return;
+    var h = lsGet('hb_hide'); h['d:' + id] = Date.now(); lsSet('hb_hide', h);
+  } else {
+    if (!confirm('이 모임에서 나갈까요? 단체 채팅방에서도 나가게 돼요.')) return;
+    await rpc('leave_post', { p_id: id });
+    S.posts = { meal: null, study: null, date: null };
+  }
+  closeSheet(); S.view = null; S.vs = []; S.cur = null; S.msgs = null; S.tab = 'chat'; render();
+  loadRooms().catch(fail); toast(k === 'dm' ? '채팅방을 지웠어요.' : '모임에서 나왔어요.');
+}
+/* 채팅 목록: 옆으로 밀면 차단·나가기 버튼이 나와요 */
+function swRow(li, acts, n) {
+  return '<div class="swr" style="--w:' + (n * 72) + 'px"><div class="swa lf">' + acts + '</div><div class="swa rt">' + acts + '</div><div class="swi">' + li + '</div></div>';
+}
+(function swipeInit() {
+  var st = null, W = 0;
+  function rows() { return document.querySelectorAll('.swr.open'); }
+  function closeAll(except) { rows().forEach(function (r) { if (r !== except) { r.classList.remove('open', 'dl', 'dr'); r.querySelector('.swi').style.transform = ''; } }); }
+  document.addEventListener('touchstart', function (e) {
+    var row = e.target.closest && e.target.closest('.swr'); if (!row || e.touches.length !== 1) { if (!(e.target.closest && e.target.closest('.swa'))) closeAll(); st = null; return; }
+    closeAll(row.classList.contains('open') ? row : null);
+    W = parseFloat(getComputedStyle(row).getPropertyValue('--w')) || 144;
+    st = { row: row, x: e.touches[0].clientX, y: e.touches[0].clientY, mode: null, base: row.classList.contains('dl') ? -W : row.classList.contains('dr') ? W : 0 };
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!st) return; var dx = e.touches[0].clientX - st.x, dy = e.touches[0].clientY - st.y;
+    if (!st.mode) { if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) st.mode = 'h'; else if (Math.abs(dy) > 10) { st = null; return; } else return; }
+    var x = Math.max(-W, Math.min(W, st.base + dx)), inner = st.row.querySelector('.swi');
+    st.row.classList.toggle('dl', x < 0); st.row.classList.toggle('dr', x > 0);
+    inner.style.transition = 'none'; inner.style.transform = 'translateX(' + x + 'px)'; st.x2 = x;
+  }, { passive: true });
+  document.addEventListener('touchend', function () {
+    if (!st || st.mode !== 'h') { st = null; return; }
+    var row = st.row, inner = row.querySelector('.swi'), x = st.x2 || 0; inner.style.transition = '';
+    if (Math.abs(x) > W / 2) { row.classList.add('open'); row.classList.toggle('dl', x < 0); row.classList.toggle('dr', x > 0); inner.style.transform = 'translateX(' + (x < 0 ? -W : W) + 'px)'; }
+    else { row.classList.remove('open', 'dl', 'dr'); inner.style.transform = ''; }
+    S.swiped = Date.now(); st = null;
+  }, { passive: true });
+  /* 밀고 난 뒤의 클릭, 또는 열린 줄을 누른 클릭은 방 열기가 아니라 닫기 */
+  document.addEventListener('click', function (e) {
+    var row = e.target.closest && e.target.closest('.swr'), inSw = e.target.closest && e.target.closest('.swi');
+    if (S.swiped && Date.now() - S.swiped < 350 && inSw) { e.stopPropagation(); e.preventDefault(); return; }
+    if (row && row.classList.contains('open') && inSw) { e.stopPropagation(); e.preventDefault(); closeAll(); }
+  }, true);
+})();
 function paintRooms() {
   var el = $('#rooms'); if (!el) return;
   var rooms = (S.rooms || []).filter(function (r) { return r.kind === S.chatSeg && !(r.kind === 'dm' && isHidden(r)); });
@@ -565,12 +612,12 @@ function paintRooms() {
     var cnt = r.unread ? '<span class="bdg acc">' + (r.unread > 99 ? '99+' : r.unread) + '</span>' : '';
     if (r.kind === 'group') {
       var last = r.last_body ? (r.last_sender ? nm(r.last_sender) + ': ' : '') + esc(r.last_body) : '모임 채팅을 시작해 보세요';
-      return '<button class="li" data-act="group" data-post="' + r.post_id + '" data-title="' + esc(r.title) + '">' + gav(r.post_id, r.title, 46) +
-        '<div class="tx"><div class="t1"><b>' + esc(r.title) + ' <small class="mc">' + r.member_count + '명</small>' + (isMuted('p:' + r.post_id) ? ' <small>🔕</small>' : '') + '</b><time>' + (r.last_at ? ago(r.last_at) : '') + '</time></div><div class="t2"><span>' + last + '</span>' + cnt + '</div></div></button>';
+      return swRow('<button class="li" data-act="group" data-post="' + r.post_id + '" data-title="' + esc(r.title) + '">' + gav(r.post_id, r.title, 46) +
+        '<div class="tx"><div class="t1"><b>' + esc(r.title) + ' <small class="mc">' + r.member_count + '명</small>' + (isMuted('p:' + r.post_id) ? ' <small>🔕</small>' : '') + '</b><time>' + (r.last_at ? ago(r.last_at) : '') + '</time></div><div class="t2"><span>' + last + '</span>' + cnt + '</div></div></button>', '<button class="swb dg" data-act="swleave" data-k="group" data-id="' + r.post_id + '">나가기</button>', 1);
     }
-    return '<button class="li" data-act="room" data-dm="' + r.dm_id + '" data-u="' + esc(r.other_user) + '">' + av(r.other_user, 46) +
+    return swRow('<button class="li" data-act="room" data-dm="' + r.dm_id + '" data-u="' + esc(r.other_user) + '">' + av(r.other_user, 46) +
       '<div class="tx"><div class="t1"><b>' + nm(r.other_user) + (isMuted('d:' + r.dm_id) ? ' <small>🔕</small>' : '') + '</b><time>' + (r.last_at ? ago(r.last_at) : '') + '</time></div>' +
-      '<div class="t2"><span>' + esc(r.last_body || '대화를 시작해 보세요') + '</span>' + cnt + '</div></div></button>';
+      '<div class="t2"><span>' + esc(r.last_body || '대화를 시작해 보세요') + '</span>' + cnt + '</div></div></button>', '<button class="swb" data-act="block" data-u="' + esc(r.other_user) + '">차단</button><button class="swb dg" data-act="swleave" data-k="dm" data-id="' + r.dm_id + '">나가기</button>', 2);
   }).join('');
   el.innerHTML = h;
 }
@@ -901,19 +948,8 @@ var H = {
   nickcancel: function () { S.nickEdit = false; render(); },
   roommenu: function () { openRoomMenu(); },
   roommute: function () { var v = S.view, key = roomKey(v), on = !isMuted(key); setMuted(key, on); closeSheet(); toast(on ? '이 채팅의 알림을 껐어요.' : '이 채팅의 알림을 켰어요.'); },
-  roomleave: async function () {
-    var v = S.view; if (!isRoom(v)) return;
-    if (v.k === 'dm') {
-      if (!confirm('채팅방을 목록에서 지울까요? 새 메시지가 오면 다시 나타나요.')) return;
-      var h = lsGet('hb_hide'); h['d:' + v.dm] = Date.now(); lsSet('hb_hide', h);
-    } else {
-      if (!confirm('이 모임에서 나갈까요? 단체 채팅방에서도 나가게 돼요.')) return;
-      await rpc('leave_post', { p_id: v.post });
-      S.posts = { meal: null, study: null, date: null };
-    }
-    closeSheet(); S.view = null; S.vs = []; S.cur = null; S.msgs = null; S.tab = 'chat'; render();
-    loadRooms().catch(fail); toast(v.k === 'dm' ? '채팅방을 지웠어요.' : '모임에서 나왔어요.');
-  },
+  roomleave: async function () { var v = S.view; if (isRoom(v)) await leaveRoom(v.k, v.k === 'dm' ? v.dm : v.post); },
+  swleave: async function (el) { await leaveRoom(el.dataset.k, Number(el.dataset.id)); },
   notes: function () { openNotes(); },
   compose: function () { S.cap = 4; go({ t: 'compose' }); },
   capm: function () { setCap(S.cap - 1); },

@@ -470,3 +470,12 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 .banner b { margin-right: 8px; }
 .banner span { font-weight: 500; opacity: .92; }
 .banner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 채팅 목록 밀어서 차단·나가기 */
+.swr { position: relative; overflow: hidden; touch-action: pan-y; }
+.swi { position: relative; background: var(--surface); transition: transform .2s ease; }
+.swa { position: absolute; top: 0; bottom: 0; display: none; width: var(--w); }
+.swr.dl .swa.rt { display: flex; right: 0; }
+.swr.dr .swa.lf { display: flex; left: 0; }
+.swb { flex: 1; border: 0; background: var(--ink2); color: #fff; font: inherit; font-size: 14px; font-weight: 700; }
+.swb.dg { background: var(--danger); }
