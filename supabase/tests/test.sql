@@ -344,4 +344,12 @@ grant select on p2 to authenticated;
 select delete_post((select id from p2));
 select t.ok((select count(*) from post_feed) = 0, '내 글은 삭제할 수 있음');
 reset role;
+\echo === 소개팅 게시판
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+create temp table p3 as select create_post('date', '소개팅 하실 분', '카페에서 만나요', null, null, 2) as id;
+grant select on p3 to authenticated;
+select t.ok((select kind::text from post_feed where id = (select id from p3)) = 'date', '소개팅 글을 올릴 수 있음');
+select delete_post((select id from p3));
+reset role;
 \echo ALL TESTS PASSED

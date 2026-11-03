@@ -7,7 +7,7 @@ var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, f
 
 var S = {
   sb: null, user: null, me: null, schools: [], tab: 'board', kind: 'meal', chatSeg: 'dm', authMode: 'login', email: '', gender: '', starting: false,
-  posts: { meal: null, study: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
+  posts: { meal: null, study: null, date: null }, rooms: null, names: {}, fr: { rows: [], by: {}, incoming: [] },
   notes: [], blocks: [], likes: [], members: null, replyTo: null, verify: null, resendAt: 0, cap: 4,
   view: null, vs: [], cur: null, cmts: null, msgs: null, myPosts: {}, sq: '', sk: 'all', psr: null, sort: 'new', stats: null, peerRead: 0, gmem: [], greads: {}, repMsg: null, rep: null, busy: false, ready: false
 };
@@ -247,7 +247,7 @@ function subscribe() {
 }
 function teardown() {
   if (chan && S.sb) { try { S.sb.removeChannel(chan); } catch (e) { /* 무시 */ } }
-  chan = null; S.view = null; S.vs = []; S.cur = null; S.tab = 'board'; S.chatSeg = 'dm'; S.posts = { meal: null, study: null }; S.rooms = null; S.notes = [];
+  chan = null; S.view = null; S.vs = []; S.cur = null; S.tab = 'board'; S.chatSeg = 'dm'; S.posts = { meal: null, study: null, date: null }; S.rooms = null; S.notes = [];
   S.fr = { rows: [], by: {}, incoming: [] }; S.names = {}; S.msgs = null; S.cmts = null; S.members = null; closeSheet();
 }
 
@@ -368,7 +368,7 @@ function vMain() {
   var body;
   if (S.tab === 'board') {
     body = '<div class="top"><div class="brand"><div class="logo">밥친구</div><div class="school">' + esc(schoolName(S.me.school_id)) + '</div></div><div class="acts">' + ib('bsearch', 'search', '게시글 검색') + ib('notes', 'bell', '알림') + '</div></div>' +
-      '<div class="tabs" role="tablist">' + [['meal', '밥'], ['study', '공부']].map(function (k) {
+      '<div class="tabs" role="tablist">' + [['meal', '밥'], ['study', '공부'], ['date', '소개팅']].map(function (k) {
         return '<button role="tab" data-act="kind" data-v="' + k[0] + '" aria-selected="' + (S.kind === k[0]) + '">' + k[1] + '</button>';
       }).join('') + '</div><main id="list"></main><button class="fab" data-act="compose" aria-label="글쓰기">' + ic('plus') + '</button>';
   } else if (S.tab === 'chat') {
@@ -381,7 +381,7 @@ function vMain() {
   return body + nav();
 }
 function vSearch() {
-  var tabs = [['all', '전체'], ['meal', '밥'], ['study', '공부'], ['friend', '친구']];
+  var tabs = [['all', '전체'], ['meal', '밥'], ['study', '공부'], ['date', '소개팅'], ['friend', '친구']];
   return '<div class="top"><h1>검색</h1></div><main class="spage"><div class="sinp">' + ic('search') + '<input type="text" id="sq" maxlength="30" placeholder="검색어를 입력하세요" value="' + esc(S.sq) + '" autocomplete="off" aria-label="검색어"><button class="sclr" data-act="sclr" aria-label="지우기"' + (S.sq ? '' : ' hidden') + '>' + ic('close') + '</button></div>' +
     '<p class="shint" id="shint"></p><div class="tabs" role="tablist">' + tabs.map(function (k) { return '<button role="tab" data-act="sk" data-v="' + k[0] + '" aria-selected="' + (S.sk === k[0]) + '">' + k[1] + '</button>'; }).join('') + '</div><div id="sres"></div></main>';
 }
@@ -497,12 +497,12 @@ function vPost() {
     '<div class="pbody" id="pb"></div></div>';
 }
 function vCompose() {
-  return '<div class="page"><div class="bar">' + ib('back', 'close', '닫기') + '<div class="bt">' + (S.kind === 'meal' ? '밥' : '공부') + ' 게시판 글쓰기</div><button class="txtbtn" data-act="submitpost">등록</button></div>' +
+  return '<div class="page"><div class="bar">' + ib('back', 'close', '닫기') + '<div class="bt">' + ({ meal: '밥', study: '공부', date: '소개팅' }[S.kind] || '밥') + ' 게시판 글쓰기</div><button class="txtbtn" data-act="submitpost">등록</button></div>' +
     '<div class="compose"><input type="text" id="ct" maxlength="40" placeholder="제목" autocomplete="off" aria-label="제목"><textarea id="cb" maxlength="1000" placeholder="내용을 입력하세요" aria-label="내용"></textarea>' +
     '<div class="cap-row"><span>모집 인원 <small>(나 포함)</small></span><div class="step"><button data-act="capm" aria-label="인원 줄이기">−</button><b id="capv" aria-live="polite">' + S.cap + '명</b><button data-act="capp" aria-label="인원 늘리기">+</button></div></div>' +
     '<div class="tm"><label class="rd2"><input type="checkbox" id="ctm"> 모이는 시간 정하기 (선택)</label><div class="tmf" id="tmf" hidden>' +
     '<input type="date" id="cd" aria-label="날짜"><input type="time" id="cs" aria-label="시작 시간"><span aria-hidden="true">~</span><input type="time" id="ce" aria-label="종료 시간 (선택)"></div></div>' +
-    '<div class="hint">같은 학교로 등록한 사람들에게만 보여요. 참여한 사람들끼리 단체 채팅을 할 수 있어요.<br>처음 만나는 사람과는 사람 많은 공개된 장소에서 만나고, 연락처·주소 같은 개인정보는 함부로 알려 주지 마세요.</div></div></div>';
+    '<div class="hint">' + (S.kind === 'date' ? '소개팅은 서로 편한 사람끼리만 만나요. 상대가 불편해하면 바로 멈추고, 불쾌한 글은 신고해 주세요.<br>' : '') + '같은 학교로 등록한 사람들에게만 보여요. 참여한 사람들끼리 단체 채팅을 할 수 있어요.<br>처음 만나는 사람과는 사람 많은 공개된 장소에서 만나고, 연락처·주소 같은 개인정보는 함부로 알려 주지 마세요.</div></div></div>';
 }
 function vRoom() {
   var v = S.view, head;
@@ -879,7 +879,7 @@ var H = {
   saveprofile: async function () {
     await rpc('update_profile', { p_nickname: ($('#mn').value || '').trim() });
     S.me = ok(await S.sb.from('profiles').select(PROFILE_COLS).eq('id', S.me.id).maybeSingle()); S.names[S.me.id] = S.me;
-    S.nickEdit = false; S.posts = { meal: null, study: null }; render(); toast('닉네임을 저장했어요.'); loadPosts().catch(fail);
+    S.nickEdit = false; S.posts = { meal: null, study: null, date: null }; render(); toast('닉네임을 저장했어요.'); loadPosts().catch(fail);
   },
   nickedit: function () { S.nickEdit = true; render(); setTimeout(function () { var m = $('#mn'); if (m) { m.focus(); m.select(); } }, 40); },
   nickcancel: function () { S.nickEdit = false; render(); },
@@ -963,9 +963,9 @@ var H = {
   block: async function (el) {
     var id = el.dataset.u; if (!confirm(nick(id) + '님을 차단할까요? 서로 글과 채팅이 보이지 않아요.')) return;
     await rpc('block_user', { p_user: id }); closeSheet(); await Promise.all([loadBlocks(), loadFriends()]);
-    S.posts = { meal: null, study: null }; S.view = null; S.vs = []; S.cur = null; S.msgs = null; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단했어요.');
+    S.posts = { meal: null, study: null, date: null }; S.view = null; S.vs = []; S.cur = null; S.msgs = null; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단했어요.');
   },
-  unblock: async function (el) { await rpc('unblock_user', { p_user: el.dataset.u }); await loadBlocks(); S.posts = { meal: null, study: null }; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단을 해제했어요.'); },
+  unblock: async function (el) { await rpc('unblock_user', { p_user: el.dataset.u }); await loadBlocks(); S.posts = { meal: null, study: null, date: null }; render(); loadPosts().catch(fail); loadRooms().catch(fail); toast('차단을 해제했어요.'); },
   fsearch: function () { openSearch(); setTimeout(function () { var q = $('#fq'); if (q) q.focus(); }, 50); },
   fdo: function () { return doSearch(); },
   freq: async function (el) { await rpc('request_friend', { p_target: el.dataset.u }); toast('친구 요청을 보냈어요.'); await loadFriends(); await loadRooms(); if ($('#fres')) await doSearch(); else closeSheet(); },
