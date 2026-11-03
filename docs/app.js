@@ -777,6 +777,11 @@ async function uploadAndSendPhoto(text) {
   var a = v.k === 'dm' ? { p_path: path, p_dm_id: v.dm } : { p_path: path, p_post: v.post }; if (text) a.p_body = text;
   await rpc('send_image', a);
 }
+/* 사진이 다 불러와져 높이가 늘어나도, 맨 아래를 보고 있었다면 계속 맨 아래에 있게 해요 */
+document.addEventListener('load', function (e) {
+  var t = e.target; if (!t || !t.classList || !t.classList.contains('mimg')) return;
+  var m = $('#msgs'); if (m && m.scrollHeight - m.scrollTop - m.clientHeight < 600) m.scrollTop = m.scrollHeight;
+}, true);
 document.addEventListener('change', function (e) {
   if (e.target && e.target.id === 'mph') { var f = e.target.files && e.target.files[0]; e.target.value = ''; pickPhoto(f); }
 });
