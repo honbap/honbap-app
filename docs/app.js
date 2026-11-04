@@ -290,6 +290,7 @@ function teardown() {
 /* ───────── 화면 그리기 ───────── */
 function render() {
   var el = $('#screen'), h;
+  if (S.ready && window.hideSplash) window.hideSplash();
   if (!S.ready) h = '<div class="center"><div class="loading"><i class="spin"></i>불러오는 중…</div></div>';
   else if (!S.user) h = vAuth();
   else if (!S.me) h = vSetup();
