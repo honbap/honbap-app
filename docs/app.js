@@ -32,7 +32,7 @@ var ERR = [
   ['Invalid login', '이메일이나 비밀번호가 맞지 않아요.'], ['EMAIL_TAKEN', '이미 가입된 이메일이에요. 로그인해 주세요.'], ['BAD_EMAIL', '이메일 주소를 확인해 주세요.'],
   ['BAD_PASSWORD', '비밀번호는 8자 이상이고 영문과 숫자를 모두 포함해야 해요.'], ['PW_MISMATCH', '비밀번호 확인이 서로 달라요.'], ['NEED_PASSWORD', '비밀번호를 입력해 주세요.'],
   ['NICKNAME_TAKEN', '이미 사용 중인 닉네임이에요.'], ['BAD_CONTENT', '부적절한 표현이 들어 있어요. 다른 말로 써 주세요.'], ['NICKNAME_RESERVED', '사용할 수 없는 닉네임이에요. (운영·관리자 등은 쓸 수 없어요)'], ['NICKNAME_COOLDOWN', '닉네임은 7일에 한 번만 바꿀 수 있어요.'],
-  ['BAD_NICKNAME', '닉네임은 2~10자, 한글·영문·숫자·_ 만 쓸 수 있어요.'], ['BAD_SCHOOL', '학교를 골라 주세요.'], ['BAD_GENDER', '남자/여자 중에 골라 주세요.'],
+  ['BAD_NICKNAME', '닉네임은 2~10자, 한글·영문·숫자·_ 만 쓸 수 있어요.'], ['BAD_SCHOOL', '학교를 선택해 주세요.'], ['BAD_GENDER', '성별을 선택해 주세요.'], ['NEED_GENDER', '성별을 선택해 주세요.'], ['NEED_NICKNAME', '닉네임을 입력해 주세요.'],
   ['TERMS_REQUIRED', '필수 항목에 모두 동의해야 시작할 수 있어요.'],
   ['BAD_TITLE', '제목은 1~40자로 써 주세요.'], ['BAD_BODY', '내용은 1~1000자로 써 주세요.'], ['BAD_COMMENT', '댓글은 1~200자로 써 주세요.'], ['BAD_MESSAGE', '메시지는 1~500자로 써 주세요.'],
   ['BAD_CAPACITY', '모집 인원은 2~10명이에요.'], ['RATE_LIMIT', '너무 빨라요. 잠시 후 다시 해 주세요.'],
@@ -532,12 +532,14 @@ function vPost() {
   return '<div class="page"><div class="bar">' + ib('back', 'back', '뒤로') + '<div class="bt">게시글</div>' + ib('postmenu', 'more', '더보기') + '</div>' +
     '<div class="pbody" id="pb"></div></div>';
 }
+function loc2(iso) { var d = new Date(iso), z = function (n) { return (n < 10 ? '0' : '') + n; }; return { d: d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()), t: z(d.getHours()) + ':' + z(d.getMinutes()) }; }
 function vCompose() {
-  return '<div class="page"><div class="bar">' + ib('back', 'close', '닫기') + '<div class="bt">' + ({ meal: '밥', study: '공부', date: '소개팅' }[S.kind] || '밥') + ' 게시판 글쓰기</div><button class="txtbtn" data-act="submitpost">등록</button></div>' +
-    '<div class="compose"><input type="text" id="ct" maxlength="40" placeholder="제목" autocomplete="off" aria-label="제목"><textarea id="cb" maxlength="1000" placeholder="내용을 입력하세요" aria-label="내용"></textarea>' +
+  var E = S.edit, st = E && E.starts_at ? loc2(E.starts_at) : null, en = E && E.ends_at ? loc2(E.ends_at) : null;
+  return '<div class="page"><div class="bar">' + ib('back', 'close', '닫기') + '<div class="bt">' + (E ? '글 수정' : ({ meal: '밥', study: '공부', date: '소개팅' }[S.kind] || '밥') + ' 게시판 글쓰기') + '</div><button class="txtbtn" data-act="submitpost">' + (E ? '저장' : '등록') + '</button></div>' +
+    '<div class="compose"><input type="text" id="ct" maxlength="40" placeholder="제목" autocomplete="off" aria-label="제목" value="' + (E ? esc(E.title) : '') + '"><textarea id="cb" maxlength="1000" placeholder="내용을 입력하세요" aria-label="내용">' + (E ? esc(E.body) : '') + '</textarea>' +
     '<div class="cap-row"><span>모집 인원 <small>(나 포함)</small></span><div class="step"><button data-act="capm" aria-label="인원 줄이기">−</button><b id="capv" aria-live="polite">' + S.cap + '명</b><button data-act="capp" aria-label="인원 늘리기">+</button></div></div>' +
-    '<div class="tm"><label class="rd2"><input type="checkbox" id="ctm"> 모이는 시간 정하기 (선택)</label><div class="tmf" id="tmf" hidden>' +
-    '<input type="date" id="cd" aria-label="날짜"><input type="time" id="cs" aria-label="시작 시간"><span aria-hidden="true">~</span><input type="time" id="ce" aria-label="종료 시간 (선택)"></div></div>' +
+    '<div class="tm"><label class="rd2"><input type="checkbox" id="ctm"' + (st ? ' checked' : '') + '> 모이는 시간 정하기 (선택)</label><div class="tmf" id="tmf"' + (st ? '' : ' hidden') + '>' +
+    '<input type="date" id="cd" aria-label="날짜" value="' + (st ? st.d : '') + '"><input type="time" id="cs" aria-label="시작 시간" value="' + (st ? st.t : '') + '"><span aria-hidden="true">~</span><input type="time" id="ce" aria-label="종료 시간 (선택)" value="' + (en ? en.t : '') + '"></div></div>' +
     '<div class="hint">' + (S.kind === 'date' ? '소개팅은 서로 편한 사람끼리만 만나요. 상대가 불편해하면 바로 멈추고, 불쾌한 글은 신고해 주세요.<br>' : '') + '같은 학교로 등록한 사람들에게만 보여요. 참여한 사람들끼리 단체 채팅을 할 수 있어요.<br>처음 만나는 사람과는 사람 많은 공개된 장소에서 만나고, 연락처·주소 같은 개인정보는 함부로 알려 주지 마세요.</div></div></div>';
 }
 function vRoom() {
@@ -1028,9 +1030,12 @@ var H = {
   setup: async function () {
     var er = $('#aerr'); er.textContent = '';
     try {
+      var nn = (($('#sn') || {}).value || '').trim(), sc = ($('#ss') || {}).value;
+      if (!nn) throw new Error('NEED_NICKNAME');
+      if (!S.gender) throw new Error('NEED_GENDER');
+      if (!sc) throw new Error('BAD_SCHOOL');
       var agreed = ['ag14', 'agt', 'agp'].every(function (id) { return $('#' + id).checked; });
       if (!agreed) throw new Error('TERMS_REQUIRED');
-      var sc = ($('#ss') || {}).value;
       await rpc('create_profile', { p_nickname: (($('#sn') || {}).value || '').trim(), p_gender: S.gender || '', p_school: sc ? Number(sc) : 0, p_agreed: true });
       S.me = ok(await S.sb.from('profiles').select(PROFILE_COLS).eq('id', S.user.id).maybeSingle());
       await enter();
@@ -1054,18 +1059,25 @@ var H = {
   roomleave: async function () { var v = S.view; if (isRoom(v)) await leaveRoom(v.k, v.k === 'dm' ? v.dm : v.post); },
   swleave: async function (el) { await leaveRoom(el.dataset.k, Number(el.dataset.id)); },
   notes: function () { openNotes(); },
-  compose: function () { S.cap = 4; go({ t: 'compose' }); },
+  compose: function () { S.edit = null; S.cap = 4; go({ t: 'compose' }); },
+  editpost: function () { var p = S.cur; if (!p) return; closeSheet(); S.edit = p; S.cap = p.capacity; go({ t: 'compose' }); },
   capm: function () { setCap(S.cap - 1); },
   capp: function () { setCap(S.cap + 1); },
   submitpost: async function () {
     var t = ($('#ct').value || '').trim(), b = ($('#cb').value || '').trim();
     if (!t) { toast('제목을 입력해 주세요.', true); return; } if (!b) { toast('내용을 입력해 주세요.', true); return; }
-    var a = { p_kind: S.kind, p_title: t, p_body: b, p_capacity: S.cap };
+    if (S.edit && S.cap < (S.edit.member_count || 0)) { toast('이미 참여한 ' + S.edit.member_count + '명보다 적게 줄일 수 없어요.', true); return; }
+    var E = S.edit, a = E ? { p_id: E.id, p_title: t, p_body: b, p_capacity: S.cap } : { p_kind: S.kind, p_title: t, p_body: b, p_capacity: S.cap };
     if ($('#ctm').checked) {
       var d = $('#cd').value, st = $('#cs').value, en = $('#ce').value;
       if (!d || !st) { toast('날짜와 시작 시간을 골라 주세요.', true); return; }
       a.p_starts = new Date(d + 'T' + st).toISOString();
       if (en) { a.p_ends = new Date(d + 'T' + en).toISOString(); if (new Date(a.p_ends) <= new Date(a.p_starts)) { toast('종료 시간은 시작보다 늦어야 해요.', true); return; } }
+    }
+    if (E) {
+      await rpc('update_post', a); S.edit = null; S.posts = { meal: null, study: null, date: null };
+      var fr = ok(await S.sb.from('post_feed').select('*').eq('id', E.id).maybeSingle()); if (fr) Object.assign(E, fr);
+      back(); toast('글을 수정했어요.'); loadPosts().catch(fail); loadRooms().catch(function () { /* 무시 */ }); return;
     }
     var id = await rpc('create_post', a);
     await loadPosts(); await openPost(id, true); loadRooms().catch(function () { /* 무시 */ });
@@ -1074,13 +1086,13 @@ var H = {
   openpost: function (el) { return openPost(el.dataset.id); },
   postmenu: function () {
     var p = S.cur; if (!p) return;
-    openSheet(p.author_id === S.me.id ? '<div class="stack"><button class="btn dg" data-act="delpost">글 삭제</button></div>' :
+    openSheet(p.author_id === S.me.id ? '<div class="stack"><button class="btn sec" data-act="editpost">글 수정</button><button class="btn dg" data-act="delpost">글 삭제</button></div>' :
       '<div class="stack"><button class="btn sec" data-act="reppost">글 신고</button><button class="btn dg" data-act="block" data-u="' + esc(p.author_id) + '">작성자 차단</button></div>');
   },
   delpost: async function () {
     if (!confirm('이 글을 삭제할까요? 참여자와 단체 채팅도 함께 삭제돼요.')) return;
     var id = S.cur.id; await rpc('delete_post', { p_id: id }); closeSheet();
-    S.posts.meal = S.posts.study = null; back(); toast('삭제했어요.'); loadPosts().catch(fail); loadRooms().catch(fail);
+    S.posts = { meal: null, study: null, date: null }; back(); toast('삭제했어요.'); loadPosts().catch(fail); loadRooms().catch(fail);
   },
   reppost: function () { openReport({ p_post: S.cur.id }); },
   join: async function () {

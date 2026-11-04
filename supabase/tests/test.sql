@@ -399,4 +399,19 @@ set role authenticated;
 select report_content('불쾌하거나 부적절한 내용', '', null, null, null, (select id from messages where image_path is not null limit 1));
 reset role;
 select t.ok((select count(*) from reports where snapshot like '📷 사진 %/a1.jpg') = 1, '사진 신고에는 사진 경로가 함께 저장됨');
+
+\echo === 글 수정
+select set_config('request.jwt.claims', json_build_object('sub', :'carol')::text, false);
+set role authenticated;
+create temp table pe as select create_post('meal', '수정 전 제목', '수정 전 내용') as id;
+grant select on pe to authenticated;
+select update_post((select id from pe), '수정 후 제목', '수정 후 내용', null, null, 5);
+select t.ok((select title = '수정 후 제목' and capacity = 5 from posts where id = (select id from pe)), '작성자는 글을 고칠 수 있음');
+select t.fails(format($$select update_post(%s, '씨발', 'x', null, null, 4)$$, (select id from pe)), 'BAD_CONTENT');
+select t.fails(format($$select update_post(%s, 'a', 'b', null, null, 1)$$, (select id from pe)), 'BAD_CAPACITY');
+reset role;
+select set_config('request.jwt.claims', json_build_object('sub', :'dave')::text, false);
+set role authenticated;
+select t.fails(format($$select update_post(%s, 'a', 'b', null, null, 4)$$, (select id from pe)), 'NOT_AUTHOR');
+reset role;
 \echo ALL TESTS PASSED
