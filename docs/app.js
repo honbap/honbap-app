@@ -1044,6 +1044,11 @@ var H = {
   logout: async function () { await hardLogout('로그아웃했어요.'); },
   delacct: async function () {
     if (!confirm('계정을 삭제하면 프로필, 글, 댓글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.\n정말 삭제할까요?')) return;
+    try { /* 올린 사진 파일을 먼저 지워요 (실패해도 탈퇴는 계속) */
+      var st = S.sb.storage.from('chat'), ls = await st.list(S.me.id, { limit: 1000 });
+      var fs = (ls.data || []).map(function (f) { return S.me.id + '/' + f.name; });
+      if (fs.length) await st.remove(fs);
+    } catch (e) { /* 무시 */ }
     await rpc('delete_account');
     await hardLogout('계정을 삭제했어요.', true);
   },
