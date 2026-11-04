@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#147A5D">
+<meta name="theme-color" content="#FAF8EE">
 <title>밥친구</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,27 +15,29 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="preload" as="image" href="splash.jpg?v=1">
-<link rel="stylesheet" href="styles.css?v=20261104l">
+<link rel="preload" as="image" href="splash.jpg?v=2">
+<link rel="preload" as="image" href="splash-logo.png?v=3">
+<link rel="stylesheet" href="styles.css?v=20261104n">
 <style>
-#splash{position:fixed;inset:0;z-index:9999;background:#FAF8EE;transition:opacity .5s ease,visibility .5s;}
+#splash{position:fixed;inset:0;z-index:9999;background:#FAF8EE;transition:opacity .55s ease,visibility .55s;}
 #splash.off{opacity:0;visibility:hidden;pointer-events:none;}
-#splash img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;animation:spf .6s ease-out both;}
-@keyframes spf{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){#splash *{animation:none!important}}
+#splash .bgi{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;}
+#splash .lg{position:absolute;left:50%;top:49%;width:min(44vw,190px);height:auto;transform:translate(-50%,-50%);mix-blend-mode:multiply;animation:spl 1s .1s cubic-bezier(.2,.7,.2,1) both;}
+@keyframes spl{from{opacity:0;transform:translate(-50%,-47%) scale(.94)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){#splash .lg{animation:none}}
 </style>
 </head>
 <body>
-<div id="splash" role="presentation"><img src="splash.jpg?v=1" alt=""></div>
-<script>window.__t0=Date.now();window.hideSplash=function(){var e=document.getElementById("splash");if(!e||e.dataset.h)return;e.dataset.h=1;setTimeout(function(){e.classList.add("off");setTimeout(function(){e.remove()},600)},Math.max(0,1200-(Date.now()-window.__t0)));};setTimeout(window.hideSplash,7000);</script>
+<div id="splash" role="presentation"><img class="bgi" src="splash.jpg?v=2" alt=""><img class="lg" src="splash-logo.png?v=3" alt=""></div>
+<script>window.__t0=Date.now();window.hideSplash=function(){var e=document.getElementById("splash");if(!e||e.dataset.h)return;e.dataset.h=1;setTimeout(function(){var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",getComputedStyle(document.body).backgroundColor);e.classList.add("off");setTimeout(function(){e.remove()},600)},Math.max(0,1200-(Date.now()-window.__t0)));};setTimeout(window.hideSplash,7000);</script>
 <div id="app">
   <div id="screen"></div>
   <div id="sheet"></div>
   <div id="notice" class="notice" hidden><span>로그인 유지를 위해 이 기기에 꼭 필요한 저장소만 사용해요. <a href="legal.html#cookies" target="_blank" rel="noopener">자세히</a></span><button data-act="cookieok">확인</button></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="config.js?v=20261104l"></script>
+<script src="config.js?v=20261104n"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261104l"></script>
+<script src="app.js?v=20261104n"></script>
 </body>
 </html>
