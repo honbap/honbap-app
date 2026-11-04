@@ -520,3 +520,6 @@ mark { background: none; color: var(--accent); font-weight: 700; }
 /* 사진 말풍선: 원본 비율을 지키면서 작게 (세로로 길어지지 않게) */
 .mimg { width: auto; height: auto; max-width: min(60vw, 240px); max-height: 220px; min-width: 140px; min-height: 100px; object-fit: cover; }
 .mimg:not([src]) { width: 160px; height: 160px; }
+
+.pcap { width: fit-content; max-width: 100%; }
+.mrow.me .pcap { margin-left: auto; }

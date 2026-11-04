@@ -34,7 +34,7 @@ var ERR = [
   ['NICKNAME_TAKEN', '이미 사용 중인 닉네임이에요.'], ['BAD_CONTENT', '부적절한 표현이 들어 있어요. 다른 말로 써 주세요.'], ['NICKNAME_RESERVED', '사용할 수 없는 닉네임이에요. (운영·관리자 등은 쓸 수 없어요)'], ['NICKNAME_COOLDOWN', '닉네임은 7일에 한 번만 바꿀 수 있어요.'],
   ['BAD_NICKNAME', '닉네임은 2~10자, 한글·영문·숫자·_ 만 쓸 수 있어요.'], ['BAD_SCHOOL', '학교를 선택해 주세요.'], ['BAD_GENDER', '성별을 선택해 주세요.'], ['NEED_GENDER', '성별을 선택해 주세요.'], ['NEED_NICKNAME', '닉네임을 입력해 주세요.'],
   ['TERMS_REQUIRED', '필수 항목에 모두 동의해야 시작할 수 있어요.'],
-  ['BAD_TITLE', '제목은 1~40자로 써 주세요.'], ['BAD_BODY', '내용은 1~1000자로 써 주세요.'], ['BAD_COMMENT', '댓글은 1~200자로 써 주세요.'], ['BAD_MESSAGE', '메시지는 1~500자로 써 주세요.'],
+  ['DELETE_FAILED', '탈퇴에 실패했어요. 잠시 뒤 다시 해 주세요.'], ['BAD_TITLE', '제목은 1~40자로 써 주세요.'], ['BAD_BODY', '내용은 1~1000자로 써 주세요.'], ['BAD_COMMENT', '댓글은 1~200자로 써 주세요.'], ['BAD_MESSAGE', '메시지는 1~500자로 써 주세요.'],
   ['BAD_CAPACITY', '모집 인원은 2~10명이에요.'], ['RATE_LIMIT', '너무 빨라요. 잠시 후 다시 해 주세요.'],
   ['USER_NOT_FOUND', '그 사람을 찾을 수 없어요.'], ['ALREADY_FRIENDS', '이미 친구예요.'], ['ALREADY_REQUESTED', '이미 요청을 보냈어요.'],
   ['TOO_MANY_REQUESTS', '보낸 요청이 너무 많아요. 잠시 후에 해 주세요.'], ['BLOCKED', '차단 관계라 할 수 없어요.'], ['NOT_FRIENDS', '친구끼리만 채팅할 수 있어요.'],
@@ -1044,12 +1044,8 @@ var H = {
   logout: async function () { await hardLogout('로그아웃했어요.'); },
   delacct: async function () {
     if (!confirm('계정을 삭제하면 프로필, 글, 댓글, 친구 관계가 모두 지워지고 되돌릴 수 없어요.\n정말 삭제할까요?')) return;
-    try { /* 올린 사진 파일을 먼저 지워요 (실패해도 탈퇴는 계속) */
-      var st = S.sb.storage.from('chat'), ls = await st.list(S.me.id, { limit: 1000 });
-      var fs = (ls.data || []).map(function (f) { return S.me.id + '/' + f.name; });
-      if (fs.length) await st.remove(fs);
-    } catch (e) { /* 무시 */ }
-    await rpc('delete_account');
+    var r = await S.sb.functions.invoke('delete-account');
+    if (r.error || !r.data || !r.data.ok) throw new Error('DELETE_FAILED');
     await hardLogout('계정을 삭제했어요.', true);
   },
   saveprofile: async function () {
